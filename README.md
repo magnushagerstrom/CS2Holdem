@@ -100,29 +100,50 @@ The full rules are in **[docs/CONCEPT.md](docs/CONCEPT.md)**.
 ## Architecture
 
 ```mermaid
-flowchart LR
-    client([Client]) -->|REST| api
+flowchart TB
+    client(["Client"])
 
-    subgraph app [CS2Holdem - Spring Boot]
-        api[api<br/>controllers, DTOs,<br/>error handling]
-        account[account<br/>registration]
-        sync[sync<br/>match discovery]
-        match[match<br/>matches & stats]
-        steam[steam<br/>Steam Web API client,<br/>share code decoding]
-        api --> account
-        api --> sync
-        sync --> account
-        sync --> match
-        sync --> steam
-        account --> steam
+    subgraph app ["CS2Holdem · Spring Boot application"]
+        api["<b>api</b><br/>REST controllers, DTOs, error handling"]
+        account["<b>account</b><br/>registration"]
+        sync["<b>sync</b><br/>match discovery"]
+        match["<b>match</b><br/>matches and history"]
+        hand["<b>hand</b><br/>hand engine, pure Java"]
+        steam["<b>steam</b><br/>Web API client, share codes"]
     end
 
-    app --> db[(PostgreSQL)]
-    steam -->|HTTPS| valve[Steam Web API]
-    app -.->|planned| queue[[Job queue]]
-    queue -.-> worker[Demo worker<br/>download → S3 → parse]
+    db[("PostgreSQL")]
+    steamapi["Steam Web API"]
+
+    queue[["Job queue"]]
+    worker["Demo worker<br/>download, parse, detect events"]
+    s3[("S3<br/>demos and replays")]
+    gc["CS2 Game Coordinator"]
+
+    client -->|HTTPS, JSON| api
+    api --> account
+    api --> sync
+    api --> match
+    sync --> account
+    sync --> match
+    sync --> steam
+    account --> steam
+    match -.-> hand
+    account --> db
+    match --> db
+    steam -->|HTTPS| steamapi
+
+    sync -.-> queue
+    queue -.-> worker
+    worker -.-> gc
+    worker -.-> s3
     worker -.-> db
+
+    classDef planned stroke-dasharray: 5 5
+    class hand,queue,worker,s3,gc planned
 ```
+
+*Solid lines and boxes exist today; dashed ones are planned.*
 
 The application is a **modular monolith**: one deployable unit, organised by feature
 rather than by technical layer. Modules depend on each other in one direction only, so any

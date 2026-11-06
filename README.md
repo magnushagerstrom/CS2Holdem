@@ -48,7 +48,7 @@ can grow from one user to thousands without being rewritten.
 | Hand type  | Every poker hand has an equivalent: high card (a knife kill), pair (2k), two pair, three of a kind (3k), straight (5 kills walking through connected areas of a map), flush (5 kills with the same suit), full house (3k + 2k), four of a kind (4k), straight flush, five of a kind (ace) and royal flush (a perfect ace) |
 | Suits      | A shared stamp, or the same area on the same map, e.g. five headshots in Mid on de_mirage |
 | Stamps     | Extra points per kill or event: the enemy was *Flashed*, *Smoked* or *Burning*, you were *Blind* or *On fire*, *Headshot*, *Wallbang*, *One grenade*, *One shot*, *Arsenal*, ... |
-| Tiebreaker | Hand type first, then points, then total damage. Points are balanced by how rare each stamp, weapon group and location is |
+| Score      | One total score per hand: base points for the hand type + kill points (damage x weapon difficulty) + stamp points. A spectacular three of a kind can beat a dull full house |
 | Game       | One CS2 season. Each player has one season hand; the strongest one wins |
 
 **Example:** a round where one HE grenade kills three (*One grenade*) and another round where
@@ -181,6 +181,8 @@ A few choices worth calling out, and the reasoning behind them:
 - **Entities protect their own rules.** No public setters; state changes go through named
   methods such as `match.markParsed(...)`. JPA's required no-args constructors are
   `protected` so they cannot be misused.
+- **One score, many factors.** A hand's score combines hand type, damage, weapon difficulty
+  and stamps, and the weights are balanced by how rare things are across all players.
 - **Raw numbers are stored, ratios are derived.** Total damage and headshot kills are
   persisted; ADR and HS% are calculated, so averages across many matches stay exact.
 

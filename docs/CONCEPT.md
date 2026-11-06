@@ -90,8 +90,8 @@ Damage is counted as health actually removed, so it is capped at 100 per enemy p
 - A hand contains **at most five kills**. Straight, flush and straight flush need **exactly five**.
 - **Special kills** (single kills such as a knife or Zeus kill) are real cards. They form a high
   card on their own and can fill a hand up to five kills.
-- **The highest hand always wins.** If the same cards qualify for several hands, the engine
-  classifies them as the highest one. A 3k + 2k where all five kills are headshots is both a
+- **Cards are classified as their highest hand type.** If the same cards qualify for several
+  hand types, the engine uses the highest one, since it gives the most base points. A 3k + 2k where all five kills are headshots is both a
   full house and a flush; it counts as a **full house**. Straights and flushes are how weaker
   combinations, such as two pair plus a knife kill, can be upgraded.
 
@@ -209,30 +209,77 @@ These are only starting values. Once there is enough data, points are calculated
 rare each stamp is (see *Balance* in section 5). The list of stamps will grow as the project
 evolves.
 
-## 5. Comparing hands
+## 5. Scoring and comparing hands
 
-Two hands are compared in this order:
+Every hand gets **one total score**, and the hand with the highest score wins. A higher hand
+type gives more points to start with, but a spectacular lower hand can beat a dull higher
+one: three no-scope AWP kills through a smoke can beat a full house of ordinary rifle kills.
 
-1. **Hand type.** A full house always beats three of a kind.
-2. **Points.** The sum of every stamp, weapon group and location in the hand (see below).
-3. **Total damage.** The total damage dealt by all kills in the hand. Clean, dominant kills
-   are worth more than finishing off wounded enemies.
+```
+score = base points of the hand type
+      + kill points   (damage x weapon difficulty, for every kill)
+      + stamp points  (every kill stamp, event stamp and hand stamp)
+```
 
-Damage is always counted as health removed from the victim, capped at 100 per victim per round.
+### Base points (proposal)
+
+| Hand type       | Base points |
+|-----------------|-------------|
+| High card       | 10          |
+| Pair            | 20          |
+| Two pair        | 35          |
+| Three of a kind | 50          |
+| Straight        | 70          |
+| Flush           | 90          |
+| Full house      | 110         |
+| Four of a kind  | 140         |
+| Straight flush  | 170         |
+| Five of a kind  | 200         |
+| Royal flush     | 250         |
+
+The gaps grow towards the top, so the rarest hands are hard to overtake.
+
+### Kill points
+
+Each kill earns points from **how much damage** it took and **how hard the weapon is to
+use**:
+
+```
+kill points = damage / 10 x weapon difficulty
+```
+
+- **Damage** is health removed from the victim, capped at 100 per victim per round, so a
+  clean kill is worth at most 10 x the difficulty.
+- **Weapon difficulty** is a multiplier between **1.0 and 2.0**, based on the weapon's
+  accuracy and spread in CS2. Easy, forgiving weapons sit near 1.0; weapons that are hard to
+  hit with, such as the Desert Eagle or the SSG 08, sit higher. A knife or Zeus kill counts as
+  maximum difficulty.
+
+### Stamp points
+
+Every stamp adds its points (see section 4), multiplied by **4** so that stamps carry real
+weight next to kill points.
+
+### Ties
+
+If two hands have exactly the same score, the one with **more total damage** wins. If that is
+also equal, the **higher hand type** wins.
 
 ### Balance
 
-Balance is essential: no single stamp, weapon group or location may be worth so much that
-it dominates the game. CS2Holdem therefore lets **the data decide the points**:
+Balance is essential: no single stamp, weapon, weapon group or location may be worth so much
+that it dominates the game. The numbers above are **starting values**, and CS2Holdem then lets
+**the data decide**:
 
 - Every stamp, weapon group and location gets points based on **how rare it is** among all
-  players' events during the season. A knife kill is rarer than a rifle kill, so it is worth
+  players' events during the season. Weapon difficulty measures how *hard* a weapon is; rarity
+  measures how *unusual* a kill is. Both are capped. A knife kill is rarer than a rifle kill, so it is worth
   more; a headshot is common, so it is worth little.
 - Points are calculated on a **logarithmic scale with a ceiling**. Something twice as rare is
   worth a little more, not twice as much, and nothing can exceed the maximum.
 - Points are **recalculated during the season** and **locked when the season ends**, together
   with the season hands.
-- Until there is enough data, the starting values in section 4 are used.
+- Until there is enough data, the starting values in sections 4 and 5 are used.
 
 This keeps the game fair even if players find something to farm: the more often something
 happens, the less it is worth.
@@ -295,6 +342,7 @@ deleted, while the event stays watchable forever.
 | `maps`, `map_areas` | Maps and their callout areas, used for location suits and straights |
 | `map_area_links`   | Which areas border each other on each map, used for straights       |
 | `point_values`     | Points per stamp, weapon group and location, per season             |
+| `weapons`          | Every weapon with its group and difficulty multiplier               |
 | `seasons`          | Season names and start/end dates                                    |
 | `season_hands`     | One hand per player and season, locked when the season ends         |
 | `season_hand_events` | Which events make up a season hand                                |

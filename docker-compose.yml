@@ -1,0 +1,20 @@
+# Lokal utvecklingsmiljö för CS2Holdem.
+# Docker Compose läser automatiskt värdena från .env i samma mapp.
+# Spring Boot (spring-boot-docker-compose) startar den här filen åt dig när du trycker Play.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cs2holdem_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      # VÄNSTER = porten på din dator, HÖGER = porten inuti containern.
+      # 5433 som standard så vi inte krockar med andra Postgres-projekt på 5432.
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

@@ -1,0 +1,32 @@
+# Ingen databasanslutning här: spring-boot-docker-compose läser docker-compose.yml,
+# frågar den körande Postgres-containern om användare/lösenord och kopplar upp sig själv.
+# I produktion (AWS) sätts anslutningen via miljövariabler från Secrets Manager.
+spring:
+  application:
+    name: cs2holdem
+  config:
+    # Läser in .env lokalt så att t.ex. STEAM_API_KEY blir tillgänglig för Spring.
+    # "optional:" = ingen krasch om filen saknas (som i produktion, där riktiga miljövariabler används).
+    # "[.properties]" = berättar för Spring att filen har formatet NYCKEL=VÄRDE.
+    import: optional:file:.env[.properties]
+  jpa:
+    hibernate:
+      # Flyway äger databasstrukturen. Hibernate kontrollerar bara att Java-klasserna matchar.
+      ddl-auto: validate
+    # Stänger av ett äldre beteende som håller databasanslutningar öppna under hela webbanropet.
+    open-in-view: false
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+
+steam:
+  api-key: ${STEAM_API_KEY}
+  base-url: https://api.steampowered.com
+
+cs2holdem:
+  sync:
+    # Max antal nya share codes vi frågar Steam om per användare och synk-körning.
+    max-codes-per-run: 20

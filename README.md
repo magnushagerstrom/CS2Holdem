@@ -99,55 +99,97 @@ The full rules are in **[docs/CONCEPT.md](docs/CONCEPT.md)**.
 
 ## Architecture
 
+At the centre of CS2Holdem is the **hand engine**: the rules that turn kills into poker hands.
+Everything else exists either to **feed** it with cards, to **show** what it produces, or to
+**run** it.
+
 ```mermaid
-flowchart TB
-    client(["Client"])
-
-    subgraph app ["CS2Holdem · Spring Boot application"]
-        api["<b>api</b><br/>REST controllers, DTOs, error handling"]
-        account["<b>account</b><br/>registration"]
-        sync["<b>sync</b><br/>match discovery"]
-        match["<b>match</b><br/>matches and history"]
-        hand["<b>hand</b><br/>hand engine, pure Java"]
-        steam["<b>steam</b><br/>Web API client, share codes"]
-    end
-
-    db[("PostgreSQL")]
-    steamapi["Steam Web API"]
-
-    queue[["Job queue"]]
-    worker["Demo worker<br/>download, parse, detect events"]
-    s3[("S3<br/>demos and replays")]
-    gc["CS2 Game Coordinator"]
-
-    client -->|HTTPS, JSON| api
-    api --> account
-    api --> sync
-    api --> match
-    sync --> account
-    sync --> match
-    sync --> steam
-    account --> steam
-    match -.-> hand
-    account --> db
-    match --> db
-    steam -->|HTTPS| steamapi
-
-    sync -.-> queue
-    queue -.-> worker
-    worker -.-> gc
-    worker -.-> s3
-    worker -.-> db
-
-    classDef planned stroke-dasharray: 5 5
-    class hand,queue,worker,s3,gc planned
+mindmap
+  root((Hand engine))
+    Rules
+      Events from a single round
+      Hands from high card to royal flush
+      Stamps add points
+      Suits by stamp or map area
+      Straights through connected areas
+      Points balanced by rarity
+    Input
+      Steam Web API
+        Finds new matches
+      CS2 Game Coordinator
+        Provides demo downloads
+      Job queue
+        Keeps heavy work away from users
+      Demo worker
+        Turns demos into kills and events
+    Output
+      Season hand
+        One per player and season
+      Card collection
+        Every event ever collected
+      Leaderboards
+        Strongest hands of the season
+      Replays
+        Watch in CS2 or as a 2D replay
+    Platform
+      Spring Boot
+        Modular monolith
+      PostgreSQL
+        Schema versioned with Flyway
+      S3
+        Demo files and replay data
+      AWS
+        Hosting and scaling
 ```
 
-*Solid lines and boxes exist today; dashed ones are planned.*
+### What each part does, and why
 
-The application is a **modular monolith**: one deployable unit, organised by feature
-rather than by technical layer. Modules depend on each other in one direction only, so any
-of them can later be extracted into its own service without touching the rest.
+**The centre**
+
+| Part | What it does | Why | Status |
+|------|--------------|-----|--------|
+| **Hand engine** | Detects events in a round, finds a player's strongest hand and compares hands. | It *is* the game. Written in pure Java with no framework or database, so the rules can be unit tested in isolation and never depend on how data is stored. | Next up |
+
+**Rules** – what the engine knows. Full details in [docs/CONCEPT.md](docs/CONCEPT.md).
+
+| Part | What it does | Why |
+|------|--------------|-----|
+| Events | A double kill, triple kill, quad kill, ace or special kill within one round becomes a card. | Only real highlight moments count, so a collection stays worth looking at. |
+| Hands | Up to five kills' worth of events form a hand, from high card to royal flush. | Familiar poker logic makes the game easy to understand. |
+| Stamps | Circumstances such as *Smoked*, *Blind* or *One shot* add points. | Two full houses are not equal; stamps reward the spectacular. |
+| Suits | Five kills sharing a stamp or the same area on the same map make a flush. | Ties hands to real places, e.g. five headshots in Mid on de_mirage. |
+| Straights | Five kills in connected areas of a map. | A CS2-native take on a straight: walking through the map. |
+| Balance | Points are derived from how rare something is, on a capped logarithmic scale. | Keeps any single stamp or weapon from dominating, even if players farm it. |
+
+**Input** – where the cards come from.
+
+| Part | What it does | Why | Status |
+|------|--------------|-----|--------|
+| `steam` module + Steam Web API | Verifies users and follows the chain of share codes to discover new matches. | Valve's only official way to learn which matches a player has played. | Done |
+| `sync` module | Decides when each user is synced next and records new matches. | Spreads calls over time to stay within Steam's daily API limit. | Done |
+| CS2 Game Coordinator | Provides the download link for a match's demo file. | Kill-by-kill data only exists in the demo; the Web API has no such details. | Planned |
+| Job queue | Holds "download and parse this demo" jobs. | Parsing a demo takes seconds and lots of CPU; users should never wait for it. | Planned |
+| Demo worker | Downloads a demo, extracts every kill and detects events and stamps. | Turns hundreds of megabytes of raw data into a handful of cards. | Planned |
+
+**Output** – what players see.
+
+| Part | What it does | Why | Status |
+|------|--------------|-----|--------|
+| `api` module | REST endpoints with validated input and Problem Details errors. | One clear entry point for any client: web, mobile or tools. | Done |
+| Season hand | One hand per player and season, suggested automatically or built by hand, locked at season end. | The competitive core: the strongest hand wins the season. | Planned |
+| Card collection | Every card and season hand a player has ever collected. | Nothing is deleted, so a profile tells a player's whole story. | Planned |
+| Leaderboards | The strongest hands of the season and a hall of fame. | Gives players something to chase and show off. | Planned |
+| Replays | A "watch in CS2" button and a 2D replay in the browser. | Seeing a friend's crazy hand is half the fun. | Planned |
+
+**Platform** – what it all runs on.
+
+| Part | What it does | Why | Status |
+|------|--------------|-----|--------|
+| Spring Boot, modular monolith | One application organised by feature: `api`, `account`, `sync`, `match`, `steam`, `hand`. | Simple to run and develop, while modules depend on each other in one direction only and can be split out later. | Done |
+| PostgreSQL + Flyway | Stores players, matches, events and hands; every schema change is a versioned migration. | Reliable relational data, and changes that are safe to apply to a live database. | Done |
+| Docker Compose | Starts PostgreSQL locally, automatically, when the app starts. | Anyone can clone and run the project without installing a database. | Done |
+| S3 | Stores demo files temporarily and replay data permanently. | Keeps large files out of the database and lets any number of app instances share them. | Planned |
+| AWS | RDS, ECS, SQS and Secrets Manager. | Scales from one user to thousands without changing the code. | Planned |
 
 ## Engineering decisions
 

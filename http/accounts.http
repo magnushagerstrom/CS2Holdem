@@ -1,0 +1,29 @@
+# Kör anropen direkt i IntelliJ: klicka på den gröna pilen bredvid varje "###".
+# Välj miljön "dev" uppe till höger i fönstret. Värdena hämtas från http-client.private.env.json
+# (som git ignorerar, eftersom auth coden är personlig).
+
+### Registrera en användare och hämta matchhistoriken
+POST http://localhost:8080/api/accounts
+Content-Type: application/json
+
+{
+  "steamId64": "{{steamId64}}",
+  "authCode": "{{authCode}}",
+  "knownShareCode": "{{knownShareCode}}"
+}
+
+### Lista användarens matcher
+GET http://localhost:8080/api/accounts/{{steamId64}}/matches
+
+### Synka manuellt (kör efter att du spelat en ny match)
+POST http://localhost:8080/api/accounts/{{steamId64}}/sync
+
+### Felfall: ogiltig request, ska ge 400 med en förklaring per fält
+POST http://localhost:8080/api/accounts
+Content-Type: application/json
+
+{
+  "steamId64": "123",
+  "authCode": "fel",
+  "knownShareCode": "inte-en-kod"
+}

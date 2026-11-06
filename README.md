@@ -45,16 +45,18 @@ can grow from one user to thousands without being rewritten.
 |------------|------------------------------------------------------------------------|
 | Card       | A highlight event from one round: double kill, triple kill, ace, ...   |
 | Hand       | Up to five kills' worth of events from the same season                 |
-| Hand type  | Pair (2k), two pair, three of a kind (3k), full house (3k + 2k), four of a kind (4k), five of a kind (ace), royal flush (a perfect ace: all headshots or 500 damage) |
-| Stamps     | Extra points per kill or event: the enemy was *Flashed*, *Smoked* or *Burning*, you were *Blind* or *On fire*, *Headshot*, *Wallbang*, *One grenade*, *One shot*, ... |
-| Tiebreaker | Hand type first, then stamp points, then total damage                  |
+| Hand type  | Every poker hand has an equivalent: high card (a knife kill), pair (2k), two pair, three of a kind (3k), straight (5 kills walking through connected areas of a map), flush (5 kills with the same suit), full house (3k + 2k), four of a kind (4k), straight flush, five of a kind (ace) and royal flush (a perfect ace) |
+| Suits      | A shared stamp, or the same area on the same map, e.g. five headshots in Mid on de_mirage |
+| Stamps     | Extra points per kill or event: the enemy was *Flashed*, *Smoked* or *Burning*, you were *Blind* or *On fire*, *Headshot*, *Wallbang*, *One grenade*, *One shot*, *Arsenal*, ... |
+| Tiebreaker | Hand type first, then points, then total damage. Points are balanced by how rare each stamp, weapon group and location is |
 | Game       | One CS2 season. Each player has one season hand; the strongest one wins |
 
 **Example:** a round where one HE grenade kills three (*One grenade*) and another round where
 one AWP shot kills two (*One shot*) together make an exceptionally strong **full house**.
 
 The app always suggests the strongest possible hand, but players can build their own.
-Every season hand and every card is kept permanently on the player's profile.
+Every season hand and every card is kept permanently on the player's profile, and every
+event can be replayed so you can watch exactly how it happened.
 
 The full rules are in **[docs/CONCEPT.md](docs/CONCEPT.md)**.
 
@@ -77,6 +79,7 @@ The full rules are in **[docs/CONCEPT.md](docs/CONCEPT.md)**.
 - Stamps such as *Smoked*, *Wallbang*, *One grenade* and *One shot*
 - Hand evaluation engine that finds and compares the strongest hands
 - Seasons, season hands, leaderboards and a permanent card collection
+- Watch every event: a "watch in CS2" button and a 2D replay in the browser
 - Encrypted storage of users' auth codes
 - Scheduled background sync that respects Steam's API rate limits
 - Deployment on AWS
@@ -164,7 +167,7 @@ A few choices worth calling out, and the reasoning behind them:
 | `match_player_stats` | One player's performance in one match                                   |
 
 Next up: tables for kills, events (the cards), stamps, seasons and season hands.
-See the data model section in [docs/CONCEPT.md](docs/CONCEPT.md#9-what-this-means-for-the-data-model).
+See the data model section in [docs/CONCEPT.md](docs/CONCEPT.md#10-what-this-means-for-the-data-model).
 
 ## API
 
@@ -263,6 +266,7 @@ src/main/resources
 - [ ] Demo worker: extract every kill from a demo and detect events
 - [ ] Stamps
 - [ ] Seasons, season hands and leaderboards
+- [ ] Event replays: watch in CS2 and 2D replay in the browser
 - [ ] CI pipeline with GitHub Actions
 - [ ] Deploy to AWS
 

@@ -103,44 +103,9 @@ At the centre of CS2Holdem is the **hand engine**: the rules that turn kills int
 Everything else exists either to **feed** it with cards, to **show** what it produces, or to
 **run** it.
 
-```mermaid
-mindmap
-  root((Hand engine))
-    Rules
-      Events from a single round
-      Hands from high card to royal flush
-      Stamps add points
-      Suits by stamp or map area
-      Straights through connected areas
-      Points balanced by rarity
-    Input
-      Steam Web API
-        Finds new matches
-      CS2 Game Coordinator
-        Provides demo downloads
-      Job queue
-        Keeps heavy work away from users
-      Demo worker
-        Turns demos into kills and events
-    Output
-      Season hand
-        One per player and season
-      Card collection
-        Every event ever collected
-      Leaderboards
-        Strongest hands of the season
-      Replays
-        Watch in CS2 or as a 2D replay
-    Platform
-      Spring Boot
-        Modular monolith
-      PostgreSQL
-        Schema versioned with Flyway
-      S3
-        Demo files and replay data
-      AWS
-        Hosting and scaling
-```
+![Architecture mind map](docs/architecture.png)
+
+A Swedish version is available in [docs/architecture-sv.png](docs/architecture-sv.png).
 
 ### What each part does, and why
 

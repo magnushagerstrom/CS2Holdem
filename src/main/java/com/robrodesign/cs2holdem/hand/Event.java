@@ -9,7 +9,7 @@ public record Event(
         int round,
         List<Kill> kills,
         Set<Stamp> stamps
-) {
+) implements Card {
 
     public static final int PERFECT_ACE_DAMAGE = 500;
 
@@ -44,6 +44,7 @@ public record Event(
         this(type, matchId, round, kills, Set.of());
     }
 
+    @Override
     public int totalDamage() {
         int total = 0;
         for (Kill kill : kills) {
@@ -52,6 +53,7 @@ public record Event(
         return total;
     }
 
+    @Override
     public int killPoints() {
         int total = 0;
         for (Kill kill : kills) {
@@ -60,6 +62,7 @@ public record Event(
         return total;
     }
 
+    @Override
     public int stampPoints() {
         int total = 0;
         for (Stamp stamp : stamps) {
@@ -85,4 +88,4 @@ public record Event(
         }
         return true;
     }
-}
+}

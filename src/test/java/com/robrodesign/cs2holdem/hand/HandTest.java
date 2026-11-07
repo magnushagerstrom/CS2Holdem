@@ -93,14 +93,14 @@ class HandTest {
                 rifleEvent(EventType.DOUBLE_KILL, MATCH_A, 6),
                 rifleEvent(EventType.DOUBLE_KILL, MATCH_B, 6)));
 
-        assertThat(hand.events()).hasSize(2);
+        assertThat(hand.cards()).hasSize(2);
     }
 
     @Test
     void rejectsEmptyHand() {
         assertThatThrownBy(() -> new Hand(HandType.HIGH_CARD, List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("at least one event");
+                .hasMessageContaining("at least one card");
     }
 
     @Test
@@ -113,13 +113,13 @@ class HandTest {
     // ---------- immutability
 
     @Test
-    void eventsCannotBeChangedAfterTheHandIsCreated() {
-        List<Event> events = new ArrayList<>();
-        events.add(rifleEvent(EventType.DOUBLE_KILL, MATCH_A, 2));
-        Hand hand = new Hand(HandType.PAIR, events);
+    void cardsCannotBeChangedAfterTheHandIsCreated() {
+        List<Card> cards = new ArrayList<>();
+        cards.add(rifleEvent(EventType.DOUBLE_KILL, MATCH_A, 2));
+        Hand hand = new Hand(HandType.PAIR, cards);
 
-        events.add(knifeKill(MATCH_A, 3));
+        cards.add(knifeKill(MATCH_A, 3));
 
-        assertThat(hand.events()).hasSize(1);
+        assertThat(hand.cards()).hasSize(1);
     }
 }

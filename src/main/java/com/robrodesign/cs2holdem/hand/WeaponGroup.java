@@ -20,4 +20,4 @@ public enum WeaponGroup {
     public String displayName() {
         return displayName;
     }
-}
+}

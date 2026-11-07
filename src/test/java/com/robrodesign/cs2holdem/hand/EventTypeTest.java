@@ -17,4 +17,4 @@ class EventTypeTest {
             assertThat(current.killCount()).isEqualTo(previous.killCount() + 1);
         }
     }
-}
+}

@@ -13,6 +13,8 @@ public record Kill(
     public static final int MIN_DIFFICULTY = 100;
     public static final int MAX_DIFFICULTY = 200;
     public static final int MAX_DAMAGE = 100;
+    /** Used when the demo has no callout name for the position. Never forms a flush. */
+    public static final String UNKNOWN_AREA = "Unknown";
 
     public Kill {
         if (weaponGroup == null) {
@@ -46,6 +48,11 @@ public record Kill(
 
     public int killPoints() {
         return damage * difficulty / 1000;
+    }
+
+    /** Kill points plus weighted stamp points: what this kill adds to a hand's score. */
+    public int value() {
+        return killPoints() + stampPoints() * Hand.STAMP_MULTIPLIER;
     }
 
     public int stampPoints() {

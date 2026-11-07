@@ -69,18 +69,25 @@ The full rules are in **[docs/CONCEPT.md](docs/CONCEPT.md)**.
 - Share codes are decoded into match ID, reservation ID and TV port
 - Manual re-sync and a match list per user through a REST API
 - Consistent error responses following RFC 9457 (Problem Details), including per-field validation errors
+- Hand evaluation engine in pure Java that finds and compares the strongest hands (unit tested)
+- Event detection from parsed demo data: double kills to aces, special kills, stamps such as
+  *Smoked*, *Wallbang*, *One grenade* and *One shot*, with bots, warmup and exit frags filtered out
+
+**Written, waiting for the first full build**
+
+- Seasons, season hands (automatic best hand or a custom one), leaderboards and a permanent card collection
+- Sign in through Steam (OpenID 2.0), session cookies, players may only change their own data
+- Auth codes encrypted at rest with AES-GCM
+- Scheduled background sync that stays within a daily Steam API call budget
+- Demo upload and a job queue for demo workers (`FOR UPDATE SKIP LOCKED`)
+- A demo worker in Go ([`worker/`](worker/README.md)) built on demoinfocs-golang
 
 **Planned**
 
 - Demo download through the CS2 Game Coordinator
-- Demo parsing into individual kills: weapon, damage, round and circumstances
-- Event detection: double kills, triple kills, aces and special kills per round
-- Stamps such as *Smoked*, *Wallbang*, *One grenade* and *One shot*
-- Hand evaluation engine that finds and compares the strongest hands
-- Seasons, season hands, leaderboards and a permanent card collection
 - Watch every event: a "watch in CS2" button and a 2D replay in the browser
-- Encrypted storage of users' auth codes
-- Scheduled background sync that respects Steam's API rate limits
+- Rarity-based stamp points from real data
+- A web front end
 - Deployment on AWS
 
 ## Tech stack
@@ -93,8 +100,10 @@ The full rules are in **[docs/CONCEPT.md](docs/CONCEPT.md)**.
 | Database      | PostgreSQL 16, schema managed by Flyway                 |
 | ORM           | Hibernate 7 (schema validation only)                    |
 | Local env     | Docker Compose, started automatically by Spring Boot    |
+| Security      | Spring Security, Steam OpenID 2.0, AES-GCM              |
+| Demo worker   | Go, demoinfocs-golang                                   |
 | Testing       | JUnit 5, AssertJ                                        |
-| Cloud (planned) | AWS: RDS, S3, SQS, ECS, Secrets Manager               |
+| Cloud (planned) | AWS: RDS, S3, ECS Fargate, Secrets Manager            |
 
 ## Architecture
 
@@ -194,9 +203,11 @@ A few choices worth calling out, and the reasoning behind them:
 | `matches`            | One row per match, shared by everyone who played in it                  |
 | `match_history`      | Which matches belong to a registered user's history                     |
 | `match_player_stats` | One player's performance in one match                                   |
-
-Next up: tables for kills, events (the cards), stamps, seasons and season hands.
-See the data model section in [docs/CONCEPT.md](docs/CONCEPT.md#10-what-this-means-for-the-data-model).
+| `seasons`            | CS2 seasons; locked when they end                                       |
+| `cards`              | Events (double kill ... ace) with their stamps, one per player and round |
+| `kills`              | Every kill that counts; straights and flushes are built from these      |
+| `season_hands`       | One hand per player and season, automatic or custom                     |
+| `season_hand_items`  | The cards or kills a season hand is made of                             |
 
 ## API
 
@@ -205,6 +216,17 @@ See the data model section in [docs/CONCEPT.md](docs/CONCEPT.md#10-what-this-mea
 | POST   | `/api/accounts`                     | Register and discover match history               |
 | POST   | `/api/accounts/{steamId64}/sync`    | Fetch new matches from Steam now                  |
 | GET    | `/api/accounts/{steamId64}/matches` | List matches in the user's history, newest first  |
+| GET    | `/api/me`                           | Who is signed in                                  |
+| POST   | `/api/matches/{matchId}/demo`       | Upload the demo of one of your matches            |
+| GET    | `/api/players/{steamId64}/collection` | Cards and kills collected this season          |
+| GET    | `/api/players/{steamId64}/hand`     | Hand for the current season                       |
+| GET    | `/api/players/{steamId64}/hands`    | Hands for every season                            |
+| PUT    | `/api/players/{steamId64}/hand`     | Build a custom hand                               |
+| DELETE | `/api/players/{steamId64}/hand/custom` | Go back to the automatic hand                  |
+| GET    | `/api/seasons/current/leaderboard`  | Leaderboard for the current season                |
+
+Sign in with `/auth/steam`. For local development, `/auth/dev-login?steamId64=...` signs in
+without Steam when `DEV_LOGIN=true`.
 
 Example:
 
@@ -241,7 +263,8 @@ HTTP/1.1 400 Bad Request
 }
 ```
 
-Ready-to-run requests for IntelliJ's HTTP client are in [`http/accounts.http`](http/accounts.http).
+Ready-to-run requests for IntelliJ's HTTP client are in [`http/accounts.http`](http/accounts.http)
+and [`http/game.http`](http/game.http).
 
 ## Getting started
 
@@ -272,12 +295,21 @@ Run the tests (Docker must be running for the integration test):
 
 ```
 src/main/java/com/robrodesign/cs2holdem
-├── account/   registered users and registration
-├── api/       REST controllers, request/response DTOs, global error handling
-├── match/     matches, match history and per-player statistics
-├── player/    every Steam player seen in a match
-├── steam/     Steam Web API client and share code decoding
-└── sync/      discovery of new matches
+├── account/     registered users and registration
+├── api/         REST controllers, views, global error handling
+├── collection/  stored cards and kills
+├── config/      scheduling and the application clock
+├── detection/   parsed demo data in, events and stamps out
+├── hand/        the game rules: cards, hands, scoring (pure Java)
+├── match/       matches, match history and per-player statistics
+├── pipeline/    demo jobs, uploads, storage and import
+├── player/      every Steam player seen in a match
+├── season/      seasons, season hands and leaderboards
+├── security/    Steam login, worker token, encryption
+├── steam/       Steam Web API client and share code decoding
+└── sync/        scheduled discovery of new matches
+
+worker/          Go program that reads demos (demoinfocs-golang)
 
 src/main/resources
 ├── application.yaml
@@ -288,13 +320,15 @@ src/main/resources
 
 - [x] Project foundation: schema, migrations and local environment
 - [x] Register users and discover match history via the Steam Web API
-- [ ] Encrypt stored auth codes
-- [ ] Scheduled sync within Steam's API rate limits
+- [x] Hand evaluation engine in pure Java (events, hands, comparison)
+- [x] Event and stamp detection from parsed demo data
+- [x] Encrypt stored auth codes
+- [x] Scheduled sync within Steam's API rate limits
+- [x] Seasons, season hands and leaderboards
+- [x] Sign in with Steam
+- [x] Demo upload and job queue
+- [ ] Demo worker: first real run against CS2 demos
 - [ ] Fetch demo URLs from the CS2 Game Coordinator
-- [ ] Hand evaluation engine in pure Java (events, hands, comparison)
-- [ ] Demo worker: extract every kill from a demo and detect events
-- [ ] Stamps
-- [ ] Seasons, season hands and leaderboards
 - [ ] Event replays: watch in CS2 and 2D replay in the browser
 - [ ] CI pipeline with GitHub Actions
 - [ ] Deploy to AWS

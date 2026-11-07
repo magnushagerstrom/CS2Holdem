@@ -204,8 +204,8 @@ Every stamp has a point value. Rarer and harder situations are worth more:
 |-------------|--------|----------------------------------------------------------|
 | Common      | 1      | Headshot, Flashed                                        |
 | Uncommon    | 2      | Smoked, Burning, Wallbang                                |
-| Rare        | 3      | Blind, On fire, No-scope, Clutch, Lightning              |
-| Legendary   | 5      | One grenade, One shot                                    |
+| Rare        | 3      | Blind, On fire, Clutch, Lightning                        |
+| Legendary   | 5      | No-scope, One grenade, One shot                          |
 
 These are only starting values. Once there is enough data, points are calculated from how
 rare each stamp is (see *Balance* in section 5). The list of stamps will grow as the project

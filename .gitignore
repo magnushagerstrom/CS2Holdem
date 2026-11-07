@@ -40,3 +40,7 @@ http-client.private.env.json
 
 ### Uploaded demos (cs2holdem.demos.directory) ###
 data/
+
+### Built demo worker ###
+worker/worker.exe
+worker/worker

@@ -8,6 +8,7 @@ import (
 	dem "github.com/markus-wa/demoinfocs-golang/v5/pkg/demoinfocs"
 	"github.com/markus-wa/demoinfocs-golang/v5/pkg/demoinfocs/common"
 	"github.com/markus-wa/demoinfocs-golang/v5/pkg/demoinfocs/events"
+	"github.com/markus-wa/demoinfocs-golang/v5/pkg/demoinfocs/msg"
 )
 
 const (
@@ -39,6 +40,11 @@ func ParseDemo(matchID int64, demo io.Reader) (*ParsedMatch, error) {
 	damage := map[pairKey]int{}         // health removed per killer and victim, per round
 	lastFireHurt := map[uint64]int{}    // steamID -> tick the player last took fire damage
 	lastHE := map[uint64]grenadeBlast{} // steamID -> the player's last HE grenade explosion
+
+	// The server sends its settings, including the map name, at the start of the demo
+	p.RegisterNetMessageHandler(func(m *msg.CSVCMsg_ServerInfo) {
+		result.MapName = m.GetMapName()
+	})
 
 	p.RegisterEventHandler(func(events.RoundStart) {
 		gs := p.GameState()
@@ -119,7 +125,6 @@ func ParseDemo(matchID int64, demo io.Reader) (*ParsedMatch, error) {
 	}
 
 	gs := p.GameState()
-	result.MapName = p.Header().MapName
 	result.DurationSeconds = int(p.CurrentTime().Seconds())
 	result.Team1Score = gs.TeamCounterTerrorists().Score()
 	result.Team2Score = gs.TeamTerrorists().Score()

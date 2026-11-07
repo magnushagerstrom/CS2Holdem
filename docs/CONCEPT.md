@@ -65,11 +65,11 @@ Every poker hand has a CS2Holdem equivalent:
 | 2  | Pair            | one double kill                                          | 2k                                   |
 | 3  | Two pair        | two double kills                                         | 2k + 2k                              |
 | 4  | Three of a kind | one triple kill                                          | 3k                                   |
-| 5  | Straight        | 5 kills in **5 connected areas** of the same map         | T Ramp → Palace → A Site → Jungle → Connector on de_mirage |
+| 5  | Straight        | one kill in each of **5 rounds in a row**, with **5 different weapon groups** | rifle, pistol, sniper, grenade, knife in rounds 7–11 |
 | 6  | Flush           | 5 kills that all share the **same suit**                 | five headshots in Mid on de_mirage   |
 | 7  | Full house      | one triple kill + one double kill                        | 3k + 2k                              |
 | 8  | Four of a kind  | one quad kill                                            | 4k                                   |
-| 9  | Straight flush  | a straight where all five kills share the same stamp     | walking through Mirage with five headshots |
+| 9  | Straight flush  | a straight where all five kills share the same stamp     | five rounds in a row, five weapon groups, five headshots |
 | 10 | Five of a kind  | one ace                                                  | 5k                                   |
 | 11 | **Royal flush** | one ace that is **all headshots** *or* has **500 total damage** | the perfect ace              |
 
@@ -95,23 +95,29 @@ Damage is counted as health actually removed, so it is capped at 100 per enemy p
   full house and a flush; it counts as a **full house**. Straights and flushes are how weaker
   combinations, such as two pair plus a knife kill, can be upgraded.
 
-### Straights: walking through the map
+### Straights: five rounds, five weapons
 
-A straight means **moving through the map with your kills**. The five kills must happen in
-**five different areas** of the **same map**, and the areas must form a **connected chain**:
-each area borders the next.
+A straight is a **series**, just like in poker: one kill in each of **five rounds in a row**
+in the **same match**, made with **five different weapon groups**.
 
-Example on *de_mirage*: kills in *T Ramp*, *Palace*, *A Site*, *Jungle* and *Connector*.
+Example: a rifle kill in round 7, a pistol kill in round 8, a sniper kill in round 9, a
+grenade kill in round 10 and a knife kill in round 11.
 
-- The kills may come from **different rounds and matches**, as long as they are all on the same map.
-- The **order** in which the kills happened does not matter, just like in poker, where
-  5-6-7-8-9 is a straight no matter in which order the cards were dealt.
-- Areas use the callout names shown in the game. Which areas border each other is stored per
-  map, either entered by hand or derived from the map's navigation mesh (to be decided).
+- The rounds must follow each other directly. The switch of sides at half-time does not
+  break a series, since the round numbers still follow each other.
+- Only **one kill per round** is used. A straight is therefore exactly five kills, like every
+  other five-kill hand.
+- If a player has several kills in a round, the engine picks the kill that gives the most
+  points while keeping the five weapon groups different.
+- Ordinary single kills count here, even though they are not cards on their own. What makes
+  a straight special is the series and the variety.
+
+Players rarely buy five different weapons in five rounds, so going for a straight is an
+**active choice**: a deagle round, a scout round, a knife round.
 
 ### Weapon groups
 
-Weapons are grouped for scoring and for the *Arsenal* stamp. An AK-47 and an M4A4 are the
+Weapons are grouped so that a straight requires real variety. An AK-47 and an M4A4 are the
 same group.
 
 | Group    | Weapons                                                        |
@@ -131,7 +137,8 @@ A **suit** is what the five kills of a flush have in common. There are two kinds
 
 - **Stamp suit:** all five kills carry the same kill stamp, e.g. five *Smoked* kills.
 - **Location suit:** all five kills happened in the same **area on the same map**, using the
-  callout names shown in the game, e.g. *Mid* on *de_mirage*.
+  callout names stored in the demo, e.g. *Mid* on *de_mirage*. Maps without callout names
+  can still give a flush through stamps.
 
 The best flushes combine both: **five headshots in Mid on de_mirage** shares a stamp *and* a
 location, and earns the points for both.
@@ -141,7 +148,7 @@ location, and earns the points for both.
 Stamps describe **how** the kills happened. They are the cherry on top: every stamp adds
 points, and they are what make one full house more impressive than another.
 
-There are three kinds of stamps: on a kill, on an event and on a whole hand.
+There are two kinds of stamps: on a kill and on a whole event.
 
 ### Kill stamps
 
@@ -183,17 +190,6 @@ An event stamp belongs to the **whole event**.
 | **Clutch**      | the event happened while the player was the last one alive    |
 | **Lightning** (proposal) | all kills in the event happened within a few seconds |
 
-### Hand stamps
-
-A hand stamp belongs to the **whole hand**.
-
-| Stamp           | When it is given                                              |
-|-----------------|---------------------------------------------------------------|
-| **Arsenal**     | the five kills in the hand were made with five different weapon groups |
-
-Example: a full house where one HE grenade kills three (*One grenade*) and one AWP shot kills
-two (*One shot*), and one of the AWP victims was flashed (*Flashed*), collects three stamps.
-
 ### Starting points (proposal)
 
 Every stamp has a point value. Rarer and harder situations are worth more:
@@ -202,7 +198,7 @@ Every stamp has a point value. Rarer and harder situations are worth more:
 |-------------|--------|----------------------------------------------------------|
 | Common      | 1      | Headshot, Flashed                                        |
 | Uncommon    | 2      | Smoked, Burning, Wallbang                                |
-| Rare        | 3      | Blind, On fire, No-scope, Clutch, Lightning, Arsenal     |
+| Rare        | 3      | Blind, On fire, No-scope, Clutch, Lightning              |
 | Legendary   | 5      | One grenade, One shot                                    |
 
 These are only starting values. Once there is enough data, points are calculated from how
@@ -218,7 +214,7 @@ one: three no-scope AWP kills through a smoke can beat a full house of ordinary 
 ```
 score = base points of the hand type
       + kill points   (damage x weapon difficulty, for every kill)
-      + stamp points  (every kill stamp, event stamp and hand stamp)
+      + stamp points  (every kill stamp and event stamp)
 ```
 
 ### Base points (proposal)
@@ -339,8 +335,7 @@ deleted, while the event stays watchable forever.
 | `kill_events`      | Every kill from a parsed demo: weapon, damage, tick, map area, flags. Internal raw data used to detect events, never shown on its own. |
 | `events`           | The cards: one row per highlight event (player, match, round, type, damage) |
 | `event_stamps`     | The stamps on each event and on each kill                           |
-| `maps`, `map_areas` | Maps and their callout areas, used for location suits and straights |
-| `map_area_links`   | Which areas border each other on each map, used for straights       |
+| `maps`, `map_areas` | Maps and their callout areas, used for location suits              |
 | `point_values`     | Points per stamp, weapon group and location, per season             |
 | `weapons`          | Every weapon with its group and difficulty multiplier               |
 | `seasons`          | Season names and start/end dates                                    |

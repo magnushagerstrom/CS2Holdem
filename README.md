@@ -45,9 +45,9 @@ can grow from one user to thousands without being rewritten.
 |------------|------------------------------------------------------------------------|
 | Card       | A highlight event from one round: double kill, triple kill, ace, ...   |
 | Hand       | Up to five kills' worth of events from the same season                 |
-| Hand type  | Every poker hand has an equivalent: high card (a knife kill), pair (2k), two pair, three of a kind (3k), straight (5 kills walking through connected areas of a map), flush (5 kills with the same suit), full house (3k + 2k), four of a kind (4k), straight flush, five of a kind (ace) and royal flush (a perfect ace) |
+| Hand type  | Every poker hand has an equivalent: high card (a knife kill), pair (2k), two pair, three of a kind (3k), straight (a kill in 5 rounds in a row with 5 different weapon groups), flush (5 kills with the same suit), full house (3k + 2k), four of a kind (4k), straight flush, five of a kind (ace) and royal flush (a perfect ace) |
 | Suits      | A shared stamp, or the same area on the same map, e.g. five headshots in Mid on de_mirage |
-| Stamps     | Extra points per kill or event: the enemy was *Flashed*, *Smoked* or *Burning*, you were *Blind* or *On fire*, *Headshot*, *Wallbang*, *One grenade*, *One shot*, *Arsenal*, ... |
+| Stamps     | Extra points per kill or event: the enemy was *Flashed*, *Smoked* or *Burning*, you were *Blind* or *On fire*, *Headshot*, *Wallbang*, *One grenade*, *One shot*, ... |
 | Score      | One total score per hand: base points for the hand type + kill points (damage x weapon difficulty) + stamp points. A spectacular three of a kind can beat a dull full house |
 | Game       | One CS2 season. Each player has one season hand; the strongest one wins |
 
@@ -123,7 +123,7 @@ A Swedish version is available in [docs/architecture-sv.png](docs/architecture-s
 | Hands | Up to five kills' worth of events form a hand, from high card to royal flush. | Familiar poker logic makes the game easy to understand. |
 | Stamps | Circumstances such as *Smoked*, *Blind* or *One shot* add points. | Two full houses are not equal; stamps reward the spectacular. |
 | Suits | Five kills sharing a stamp or the same area on the same map make a flush. | Ties hands to real places, e.g. five headshots in Mid on de_mirage. |
-| Straights | Five kills in connected areas of a map. | A CS2-native take on a straight: walking through the map. |
+| Straights | A kill in five rounds in a row, with five different weapon groups. | A series like a poker straight, and an active choice: you have to buy different weapons on purpose. |
 | Balance | Points are derived from how rare something is, on a capped logarithmic scale. | Keeps any single stamp or weapon from dominating, even if players farm it. |
 
 **Input** – where the cards come from.

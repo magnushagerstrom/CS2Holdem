@@ -14,10 +14,15 @@ import java.util.Optional;
  */
 public final class WeaponCatalog {
 
-    public record WeaponInfo(WeaponGroup group, int difficulty) {
+    /** @param name the weapon's canonical name, e.g. "ak47", whatever spelling it was found by */
+    public record WeaponInfo(String name, WeaponGroup group, int difficulty) {
     }
 
     private static final Map<String, WeaponInfo> WEAPONS = new HashMap<>();
+
+    // The demo parser reports display names ("AK-47", "Desert Eagle"). After normalising
+    // (lower case, letters and digits only) they are mapped to the canonical names.
+    private static final Map<String, String> ALIASES = new HashMap<>();
 
     static {
         rifle("ak47", 115);
@@ -67,6 +72,27 @@ public final class WeaponCatalog {
 
         add(WeaponGroup.MELEE, "knife", 200);
         add(WeaponGroup.MELEE, "taser", 200);
+
+        alias("m4a4", "m4a1");          // CS2 calls the M4A4 "m4a1" internally
+        alias("m4a1s", "m4a1_silencer");
+        alias("galil", "galilar");
+        alias("sg553", "sg556");
+        alias("glock18", "glock");
+        alias("usps", "usp_silencer");
+        alias("p2000", "hkp2000");
+        alias("cz75auto", "cz75a");
+        alias("deserteagle", "deagle");
+        alias("r8revolver", "revolver");
+        alias("dualberettas", "elite");
+        alias("mp5", "mp5sd");
+        alias("ump", "ump45");
+        alias("ppbizon", "bizon");
+        alias("hegrenade", "hegrenade");
+        alias("he", "hegrenade");
+        alias("incendiarygrenade", "incgrenade");
+        alias("incendiary", "incgrenade");
+        alias("zeusx27", "taser");
+        alias("zeus", "taser");
     }
 
     public static final String HE_GRENADE = "hegrenade";
@@ -79,21 +105,35 @@ public final class WeaponCatalog {
     }
 
     private static void add(WeaponGroup group, String name, int difficulty) {
-        WEAPONS.put(name, new WeaponInfo(group, difficulty));
+        WEAPONS.put(name, new WeaponInfo(name, group, difficulty));
+        ALIASES.put(normalise(name), name);
+    }
+
+    private static void alias(String normalisedAlias, String name) {
+        ALIASES.put(normalisedAlias, name);
+    }
+
+    private static String normalise(String value) {
+        return value.toLowerCase().replaceAll("[^a-z0-9]", "");
     }
 
     /**
-     * Looks up a weapon. Names are matched without the "weapon_" prefix, and every knife skin
-     * ("knife_karambit", "bayonet" ...) counts as a knife.
+     * Looks up a weapon by its internal name ("weapon_ak47", "ak47") or its display name ("AK-47").
+     * Every knife skin ("knife_karambit", "Bayonet" ...) counts as a knife.
      */
     public static Optional<WeaponInfo> find(String weapon) {
         if (weapon == null || weapon.isBlank()) {
             return Optional.empty();
         }
-        String name = weapon.toLowerCase().replace("weapon_", "");
-        if (name.startsWith("knife") || name.equals("bayonet")) {
-            name = "knife";
+        String lower = weapon.toLowerCase().replace("weapon_", "");
+        if (lower.startsWith("knife") || lower.contains("bayonet") || lower.contains("karambit")) {
+            return Optional.of(WEAPONS.get("knife"));
         }
-        return Optional.ofNullable(WEAPONS.get(name));
+        WeaponInfo exact = WEAPONS.get(lower);
+        if (exact != null) {
+            return Optional.of(exact);
+        }
+        String canonical = ALIASES.get(normalise(lower));
+        return canonical == null ? Optional.empty() : Optional.ofNullable(WEAPONS.get(canonical));
     }
 }

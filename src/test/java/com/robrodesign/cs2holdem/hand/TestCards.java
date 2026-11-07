@@ -38,6 +38,6 @@ final class TestCards {
     }
 
     static RoundKill roundKill(int round, WeaponGroup group, String area) {
-        return new RoundKill(MATCH, round, kill(group, area));
+        return new RoundKill(MATCH, round, round * 1000, kill(group, area));
     }
 }

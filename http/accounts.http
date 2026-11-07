@@ -2,6 +2,13 @@
 # Välj miljön "dev" uppe till höger i fönstret. Värdena hämtas från http-client.private.env.json
 # (som git ignorerar, eftersom auth coden är personlig).
 
+### 0. Logga in lokalt utan Steam (kräver DEV_LOGIN=true i .env)
+# IntelliJ sparar sessionskakan, så anropen nedanför körs som inloggad.
+GET http://localhost:8080/auth/dev-login?steamId64={{steamId64}}
+
+### Vem är jag?
+GET http://localhost:8080/api/me
+
 ### Registrera en användare och hämta matchhistoriken
 POST http://localhost:8080/api/accounts
 Content-Type: application/json

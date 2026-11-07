@@ -77,7 +77,7 @@ public final class EventDetector {
             List<CountedKill> kills = entry.getValue();
             kills.sort(Comparator.comparingInt(k -> k.parsed().tick()));
             for (CountedKill kill : kills) {
-                roundKills.add(new RoundKill(match.matchId(), round, kill.kill()));
+                roundKills.add(new RoundKill(match.matchId(), round, kill.parsed().tick(), kill.kill()));
             }
             toEvent(match.matchId(), round, kills).ifPresent(events::add);
         }
@@ -87,7 +87,7 @@ public final class EventDetector {
     // ---------------------------------------------------------------- step 1 and 2
 
     /** A kill that counts, together with the raw data the event stamps need. */
-    record CountedKill(ParsedKill parsed, Kill kill) {
+    record CountedKill(ParsedKill parsed, String weapon, Kill kill) {
     }
 
     static Optional<CountedKill> toCountedKill(ParsedKill parsed, Integer decidedTick) {
@@ -103,7 +103,7 @@ public final class EventDetector {
         String area = parsed.killerPlace() == null || parsed.killerPlace().isBlank()
                 ? Kill.UNKNOWN_AREA : parsed.killerPlace();
         Kill kill = new Kill(info.group(), info.difficulty(), damage, area, killStamps(parsed, info.group()));
-        return Optional.of(new CountedKill(parsed, kill));
+        return Optional.of(new CountedKill(parsed, info.name(), kill));
     }
 
     static boolean counts(ParsedKill kill, Integer decidedTick) {
@@ -183,15 +183,16 @@ public final class EventDetector {
         ParsedKill last = kills.get(kills.size() - 1).parsed();
 
         boolean sameGrenade = first.grenadeId() != null && kills.stream().allMatch(k ->
-                WeaponCatalog.HE_GRENADE.equals(normalise(k.parsed().weapon()))
+                WeaponCatalog.HE_GRENADE.equals(k.weapon())
                         && Objects.equals(k.parsed().grenadeId(), first.grenadeId()));
         if (sameGrenade) {
             stamps.add(Stamp.ONE_GRENADE);
         }
 
+        String firstWeapon = kills.get(0).weapon();
         boolean sameBullet = kills.stream().allMatch(k ->
                 k.parsed().tick() == first.tick()
-                        && normalise(k.parsed().weapon()).equals(normalise(first.weapon()))
+                        && k.weapon().equals(firstWeapon)
                         && isBulletWeapon(k.kill().weaponGroup()));
         if (sameBullet) {
             stamps.add(Stamp.ONE_SHOT);
@@ -205,9 +206,5 @@ public final class EventDetector {
 
     private static boolean isBulletWeapon(WeaponGroup group) {
         return group != WeaponGroup.GRENADE && group != WeaponGroup.MELEE;
-    }
-
-    private static String normalise(String weapon) {
-        return weapon == null ? "" : weapon.toLowerCase().replace("weapon_", "");
     }
 }

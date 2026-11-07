@@ -1,7 +1,9 @@
 package com.robrodesign.cs2holdem.account;
 
 import com.robrodesign.cs2holdem.player.Player;
+import com.robrodesign.cs2holdem.security.EncryptedStringConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
@@ -38,7 +40,8 @@ public class AppUser {
     @JoinColumn(name = "steam_id64")
     private Player player;
 
-    // Krypteras i steg 2. Får aldrig loggas eller skickas ut via API:t.
+    // Krypteras i databasen (EncryptedStringConverter). Får aldrig loggas eller skickas ut via API:t.
+    @Convert(converter = EncryptedStringConverter.class)
     @Column(name = "auth_code", length = 512, nullable = false)
     private String authCode;
 

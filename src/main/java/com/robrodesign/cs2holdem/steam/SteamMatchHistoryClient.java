@@ -19,11 +19,13 @@ public class SteamMatchHistoryClient {
 
     private final RestClient restClient;
     private final SteamProperties properties;
+    private final SteamCallBudget budget;
 
     // Spring Boot ger oss en färdigkonfigurerad RestClient.Builder. Vi bygger en klient som pekar på Steam.
-    public SteamMatchHistoryClient(RestClient.Builder builder, SteamProperties properties) {
+    public SteamMatchHistoryClient(RestClient.Builder builder, SteamProperties properties, SteamCallBudget budget) {
         this.restClient = builder.baseUrl(properties.baseUrl()).build();
         this.properties = properties;
+        this.budget = budget;
     }
 
     /**
@@ -32,6 +34,9 @@ public class SteamMatchHistoryClient {
      * @return nästa share code, eller Optional.empty() om knownShareCode redan är den senaste
      */
     public Optional<String> findNextShareCode(long steamId64, String authCode, String knownShareCode) {
+        if (!budget.tryAcquire()) {
+            throw new SteamUnavailableException("Daily Steam API budget is used up", null);
+        }
         NextCodeResponse response;
         try {
             response = restClient.get()

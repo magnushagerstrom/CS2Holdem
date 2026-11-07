@@ -93,6 +93,14 @@ public class MatchSyncService {
         return newMatches;
     }
 
+    /** Skjuter upp nästa synk, t.ex. när Steam inte svarar. */
+    public void postpone(long steamId64, Duration delay) {
+        appUserRepository.findById(steamId64).ifPresent(user -> {
+            user.markSynced(Instant.now(), delay);
+            appUserRepository.save(user);
+        });
+    }
+
     /** @return true om matchen var ny i just den här användarens historik */
     private boolean recordInHistory(long steamId64, ShareCode code) {
         ensureMatchExists(code);
@@ -108,7 +116,7 @@ public class MatchSyncService {
             return;
         }
         try {
-            matchRepository.save(new Match(code.matchId(), code.value()));
+            matchRepository.save(new Match(code.matchId(), code.value(), code.reservationId(), code.tvPort()));
         } catch (DataIntegrityViolationException e) {
             // Två lagkamrater synkades samtidigt och båda försökte spara samma match.
             // Den andra hann före, och databasens PRIMARY KEY stoppade dubbletten. Matchen finns nu,

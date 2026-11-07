@@ -1,0 +1,39 @@
+# Spelet: säsonger, kort, händer och demos. Kör "0. Logga in" i accounts.http först.
+
+### Pågående säsong
+GET http://localhost:8080/api/seasons/current
+
+### Topplistan
+GET http://localhost:8080/api/seasons/current/leaderboard
+
+### Mina kort och kills den här säsongen
+GET http://localhost:8080/api/players/{{steamId64}}/collection
+
+### Min hand
+GET http://localhost:8080/api/players/{{steamId64}}/hand
+
+### Bygg en egen hand (ID:n från collection-svaret)
+PUT http://localhost:8080/api/players/{{steamId64}}/hand
+Content-Type: application/json
+
+{
+  "cardIds": ["1", "2"],
+  "killIds": []
+}
+
+### Tillbaka till automatisk hand
+DELETE http://localhost:8080/api/players/{{steamId64}}/hand/custom
+
+### Ladda upp en demo (byt match-ID och sökväg)
+POST http://localhost:8080/api/matches/{{matchId}}/demo
+Content-Type: multipart/form-data; boundary=demo
+
+--demo
+Content-Disposition: form-data; name="file"; filename="match.dem"
+
+< C:/Users/Magnu/Downloads/match.dem
+--demo--
+
+### Workern: finns det demos att läsa? (som workern ser det)
+GET http://localhost:8080/internal/jobs/parse
+X-Worker-Token: {{workerToken}}

@@ -29,22 +29,26 @@ public class AccountController {
     private final MatchSyncService matchSyncService;
     private final AppUserRepository appUserRepository;
     private final MatchRepository matchRepository;
+    private final CurrentPlayer currentPlayer;
 
     public AccountController(RegistrationService registrationService,
                              MatchSyncService matchSyncService,
                              AppUserRepository appUserRepository,
-                             MatchRepository matchRepository) {
+                             MatchRepository matchRepository,
+                             CurrentPlayer currentPlayer) {
         this.registrationService = registrationService;
         this.matchSyncService = matchSyncService;
         this.appUserRepository = appUserRepository;
         this.matchRepository = matchRepository;
+        this.currentPlayer = currentPlayer;
     }
 
-    // POST /api/accounts : registrera och hämta historiken direkt
+    // POST /api/accounts : koppla sin matchhistorik. Kräver att man är inloggad som just den spelaren.
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public RegisterResponse register(@Valid @RequestBody RegisterRequest request) {
         long steamId64 = Long.parseLong(request.steamId64());
+        currentPlayer.requireSelf(steamId64);
         registrationService.register(steamId64, request.authCode(), request.knownShareCode());
         int matchesFound = matchSyncService.syncUser(steamId64);
         return new RegisterResponse(request.steamId64(), matchesFound);
@@ -53,6 +57,7 @@ public class AccountController {
     // POST /api/accounts/{steamId64}/sync : synka manuellt (bra för att testa efter en ny match)
     @PostMapping("/{steamId64}/sync")
     public SyncResponse sync(@PathVariable("steamId64") long steamId64) {
+        currentPlayer.requireSelf(steamId64);
         int newMatches = matchSyncService.syncUser(steamId64);
         return new SyncResponse(String.valueOf(steamId64), newMatches);
     }

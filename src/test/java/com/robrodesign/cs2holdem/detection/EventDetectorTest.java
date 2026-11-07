@@ -238,6 +238,27 @@ class EventDetectorTest {
     }
 
     @Test
+    void weaponCatalogUnderstandsDisplayNames() {
+        assertThat(WeaponCatalog.find("AK-47").orElseThrow().name()).isEqualTo("ak47");
+        assertThat(WeaponCatalog.find("M4A4").orElseThrow().name()).isEqualTo("m4a1");
+        assertThat(WeaponCatalog.find("M4A1-S").orElseThrow().name()).isEqualTo("m4a1_silencer");
+        assertThat(WeaponCatalog.find("Desert Eagle").orElseThrow().name()).isEqualTo("deagle");
+        assertThat(WeaponCatalog.find("SSG 08").orElseThrow().group()).isEqualTo(WeaponGroup.SNIPER_RIFLE);
+        assertThat(WeaponCatalog.find("HE Grenade").orElseThrow().name()).isEqualTo("hegrenade");
+        assertThat(WeaponCatalog.find("Zeus x27").orElseThrow().group()).isEqualTo(WeaponGroup.MELEE);
+    }
+
+    @Test
+    void displayNameHeGrenadeKillsGetOneGrenade() {
+        Event event = events(match(
+                kill().round(9).tick(tickIn(9, 0)).weapon("HE Grenade").grenade(77),
+                kill().round(9).tick(tickIn(9, 0)).weapon("HE Grenade").grenade(77))).get(0);
+
+        assertThat(event.stamps().contains(Stamp.ONE_GRENADE)).isTrue();
+        assertThat(event.stamps().contains(Stamp.ONE_SHOT)).isFalse();
+    }
+
+    @Test
     void weaponCatalogKnowsKnifeSkins() {
         assertThat(WeaponCatalog.find("weapon_knife_butterfly").orElseThrow().group())
                 .isEqualTo(WeaponGroup.MELEE);

@@ -37,3 +37,6 @@ build/
 .env.*
 !.env.example
 http-client.private.env.json
+
+### Uploaded demos (cs2holdem.demos.directory) ###
+data/

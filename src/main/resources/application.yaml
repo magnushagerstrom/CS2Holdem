@@ -15,12 +15,27 @@ spring:
       ddl-auto: validate
     # Stänger av ett äldre beteende som håller databasanslutningar öppna under hela webbanropet.
     open-in-view: false
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
   flyway:
     enabled: true
+  servlet:
+    multipart:
+      # En CS2-demo är 50-300 MB. Större filer avvisas innan de når vår kod.
+      max-file-size: 400MB
+      max-request-size: 400MB
+
+server:
+  servlet:
+    session:
+      cookie:
+        # Kakan skickas bara när anropet kommer från vår egen sida. Skyddar mot CSRF,
+        # därför kan Springs CSRF-tokens vara avstängda (se SecurityConfig).
+        same-site: strict
+        http-only: true
+      timeout: 30d
 
 steam:
   api-key: ${STEAM_API_KEY}
@@ -30,3 +45,24 @@ cs2holdem:
   sync:
     # Max antal nya share codes vi frågar Steam om per användare och synk-körning.
     max-codes-per-run: 20
+    # Den schemalagda synken. Sätt SYNC_ENABLED=false i .env för att stänga av den lokalt.
+    enabled: ${SYNC_ENABLED:true}
+    # Max antal användare per körning (körs varje minut).
+    users-per-run: 50
+    # Steam tillåter ungefär 100 000 anrop per dygn och API-nyckel. Vi håller marginal.
+    daily-call-budget: 80000
+  security:
+    # Hemligheter: kommer från .env lokalt och från Secrets Manager på AWS. Aldrig i git.
+    encryption-key: ${APP_ENCRYPTION_KEY}
+    worker-token: ${WORKER_TOKEN}
+    public-base-url: ${PUBLIC_BASE_URL:http://localhost:8080}
+    after-login-url: ${AFTER_LOGIN_URL:/api/me}
+    # Inloggning utan Steam, för lokal utveckling. Får ALDRIG vara true i produktion.
+    dev-login-enabled: ${DEV_LOGIN:false}
+  demos:
+    # Uppladdade demos väntar här tills workern har läst dem. På AWS: byt till S3.
+    directory: ${DEMO_DIRECTORY:./data/demos}
+
+logging:
+  level:
+    com.robrodesign.cs2holdem: INFO

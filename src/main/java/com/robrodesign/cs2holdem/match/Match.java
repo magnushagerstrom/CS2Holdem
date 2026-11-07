@@ -21,6 +21,8 @@ import java.time.Instant;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Match {
 
+    public static final int MAX_ATTEMPTS = 5;
+
     @Id
     @Column(name = "match_id")
     private Long matchId;
@@ -47,6 +49,31 @@ public class Match {
     @Column(name = "team2_score")
     private Integer team2Score;
 
+    // Behövs för att be Game Coordinator om demon. Avkodas ur share coden.
+    @Column(name = "reservation_id")
+    private Long reservationId;
+
+    @Column(name = "tv_port")
+    private Integer tvPort;
+
+    @Column(name = "demo_url", columnDefinition = "TEXT")
+    private String demoUrl;
+
+    // Var demon ligger i vår lagring (en S3-nyckel eller en filsökväg)
+    @Column(name = "demo_key", columnDefinition = "TEXT")
+    private String demoKey;
+
+    @Column(name = "attempts", nullable = false)
+    private int attempts;
+
+    @Column(name = "last_error", columnDefinition = "TEXT")
+    private String lastError;
+
+    // When a worker took this match as a job. Null when nobody is working on it.
+    // A claim older than the job's time limit counts as abandoned (the worker probably crashed).
+    @Column(name = "claimed_at")
+    private Instant claimedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -61,8 +88,29 @@ public class Match {
         this.status = MatchStatus.DISCOVERED;
     }
 
-    public void markDownloaded() {
+    public Match(Long matchId, String shareCode, long reservationId, int tvPort) {
+        this(matchId, shareCode);
+        this.reservationId = reservationId;
+        this.tvPort = tvPort;
+    }
+
+    /** A worker has taken this match as a job. */
+    public void claim(Instant now) {
+        this.claimedAt = now;
+    }
+
+    public void markDemoLocated(String demoUrl) {
+        this.claimedAt = null;
+        this.demoUrl = demoUrl;
+        this.status = MatchStatus.DEMO_LOCATED;
+        this.lastError = null;
+    }
+
+    public void markDownloaded(String demoKey) {
+        this.claimedAt = null;
+        this.demoKey = demoKey;
         this.status = MatchStatus.DOWNLOADED;
+        this.lastError = null;
     }
 
     public void markParsed(String mapName, Instant playedAt, int durationSeconds, int team1Score, int team2Score) {
@@ -71,10 +119,27 @@ public class Match {
         this.durationSeconds = durationSeconds;
         this.team1Score = team1Score;
         this.team2Score = team2Score;
+        this.claimedAt = null;
         this.status = MatchStatus.PARSED;
+        this.lastError = null;
+        this.demoKey = null; // the stored demo is deleted after parsing
     }
 
-    public void markFailed() {
-        this.status = MatchStatus.FAILED;
+    public void markExpired() {
+        this.claimedAt = null;
+        this.status = MatchStatus.EXPIRED;
+    }
+
+    /**
+     * Records a failed attempt. The match stays in its current status so it is retried,
+     * until it has failed {@link #MAX_ATTEMPTS} times.
+     */
+    public void recordFailure(String error) {
+        this.claimedAt = null;
+        this.attempts++;
+        this.lastError = error == null ? null : error.substring(0, Math.min(error.length(), 2000));
+        if (attempts >= MAX_ATTEMPTS) {
+            this.status = MatchStatus.FAILED;
+        }
     }
 }

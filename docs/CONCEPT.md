@@ -66,10 +66,10 @@ Every poker hand has a CS2Holdem equivalent:
 | 3  | Two pair        | two double kills                                         | 2k + 2k                              |
 | 4  | Three of a kind | one triple kill                                          | 3k                                   |
 | 5  | Straight        | one kill in each of **5 rounds in a row**, with **5 different weapon groups** | rifle, pistol, sniper, grenade, knife in rounds 7–11 |
-| 6  | Flush           | 5 kills that all share the **same suit**                 | five headshots in Mid on de_mirage   |
+| 6  | Flush           | 5 kills in the **same area of the same map**             | five kills in Mid on de_mirage       |
 | 7  | Full house      | one triple kill + one double kill                        | 3k + 2k                              |
 | 8  | Four of a kind  | one quad kill                                            | 4k                                   |
-| 9  | Straight flush  | a straight where all five kills share the same stamp     | five rounds in a row, five weapon groups, five headshots |
+| 9  | Straight flush  | a straight where all five kills are in the same area     | five rounds in a row, five weapon groups, all from Mid |
 | 10 | Five of a kind  | one ace                                                  | 5k                                   |
 | 11 | **Royal flush** | one ace that is **all headshots** *or* has **500 total damage** | the perfect ace              |
 
@@ -131,17 +131,17 @@ same group.
 | Grenade  | HE grenade, Molotov, Incendiary                                |
 | Melee    | Knife, Zeus x27                                                |
 
-### Suits
+### Flushes: same place
 
-A **suit** is what the five kills of a flush have in common. There are two kinds:
+In poker a flush is five cards of the same suit. In CS2Holdem the "suit" is the **place**:
+a flush is five kills in the **same area of the same map**, e.g. five kills in *Mid* on
+*de_mirage*.
 
-- **Stamp suit:** all five kills carry the same kill stamp, e.g. five *Smoked* kills.
-- **Location suit:** all five kills happened in the same **area on the same map**, using the
-  callout names stored in the demo, e.g. *Mid* on *de_mirage*. Maps without callout names
-  can still give a flush through stamps.
-
-The best flushes combine both: **five headshots in Mid on de_mirage** shares a stamp *and* a
-location, and earns the points for both.
+- The area is the callout name stored in the demo for the player's position, the same name
+  shown next to teammates in the game. No extra map data is needed.
+- *Mid* on de_mirage and *Mid* on de_dust2 are different places.
+- The kills may come from different rounds and matches during the season.
+- Maps without callout names cannot produce flushes.
 
 ## 4. Stamps
 
@@ -154,7 +154,7 @@ There are two kinds of stamps: on a kill and on a whole event.
 
 A kill stamp belongs to **one kill**. Every kill in an event can carry its own stamps, and a
 single kill can carry several. A full house where two kills went through a smoke earns the
-*Smoked* points twice.
+*Smoked* points twice. Stamps add points but never decide the hand type.
 
 **The enemy was impaired:**
 
@@ -335,7 +335,7 @@ deleted, while the event stays watchable forever.
 | `kill_events`      | Every kill from a parsed demo: weapon, damage, tick, map area, flags. Internal raw data used to detect events, never shown on its own. |
 | `events`           | The cards: one row per highlight event (player, match, round, type, damage) |
 | `event_stamps`     | The stamps on each event and on each kill                           |
-| `maps`, `map_areas` | Maps and their callout areas, used for location suits              |
+| `maps`, `map_areas` | Maps and their callout areas, used for flushes                     |
 | `point_values`     | Points per stamp, weapon group and location, per season             |
 | `weapons`          | Every weapon with its group and difficulty multiplier               |
 | `seasons`          | Season names and start/end dates                                    |

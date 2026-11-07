@@ -5,6 +5,13 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+
+
+import java.util.HashSet;
+import java.util.Set;
+
+
+
 class KillTest {
 
     // ---------- killPoints
@@ -84,4 +91,51 @@ class KillTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Map area");
     }
+
+    // ---------- stamps
+
+    @Test
+    void stampPointsAreTheSumOfAllStamps() {
+        Kill kill = new Kill(WeaponGroup.RIFLE, 120, 100, "Mid",
+                Set.of(Stamp.HEADSHOT, Stamp.SMOKED));
+
+        assertThat(kill.stampPoints()).isEqualTo(3); // 1 + 2
+    }
+
+    @Test
+    void killWithoutStampsHasNoStampPoints() {
+        Kill kill = new Kill(WeaponGroup.RIFLE, 120, 100, "Mid");
+
+        assertThat(kill.stamps()).isEmpty();
+        assertThat(kill.stampPoints()).isZero();
+    }
+
+    @Test
+    void rejectsEventStampOnAKill() {
+        assertThatThrownBy(() -> new Kill(WeaponGroup.GRENADE, 150, 100, "Mid",
+                Set.of(Stamp.ONE_GRENADE)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("not a kill stamp");
+    }
+
+    @Test
+    void rejectsMissingStamps() {
+        assertThatThrownBy(() -> new Kill(WeaponGroup.RIFLE, 120, 100, "Mid", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Stamps");
+    }
+
+    @Test
+    void stampsCannotBeChangedAfterTheKillIsCreated() {
+        Set<Stamp> stamps = new HashSet<>();
+        stamps.add(Stamp.HEADSHOT);
+        Kill kill = new Kill(WeaponGroup.RIFLE, 120, 100, "Mid", stamps);
+
+        stamps.add(Stamp.SMOKED);
+
+        assertThat(kill.stamps()).containsExactly(Stamp.HEADSHOT);
+        assertThatThrownBy(() -> kill.stamps().add(Stamp.WALLBANG))
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
 }

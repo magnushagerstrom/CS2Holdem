@@ -45,7 +45,7 @@ can grow from one user to thousands without being rewritten.
 |------------|------------------------------------------------------------------------|
 | Card       | A highlight event from one round: double kill, triple kill, ace, ...   |
 | Hand       | Up to five kills' worth of events from the same season                 |
-| Hand type  | Every poker hand has an equivalent: high card (a knife kill), pair (2k), two pair, three of a kind (3k), straight (a kill in 5 rounds in a row with 5 different weapon groups), flush (5 kills in the same area of the same map), full house (3k + 2k), four of a kind (4k), straight flush, five of a kind (ace) and royal flush (a perfect ace) |
+| Hand type  | Every poker hand has an equivalent: high card (a knife kill), pair (2k), two pair, three of a kind (3k), straight (a kill in 5 rounds in a row with 5 different weapon groups), flush (5 kills in the same area within 5 rounds in a row), full house (3k + 2k), four of a kind (4k), straight flush, five of a kind (ace) and royal flush (a perfect ace) |
 | Stamps     | Extra points per kill or event: the enemy was *Flashed*, *Smoked* or *Burning*, you were *Blind* or *On fire*, *Headshot*, *Wallbang*, *One grenade*, *One shot*, ... |
 | Score      | One total score per hand: base points for the hand type + kill points (damage x weapon difficulty) + stamp points. A spectacular three of a kind can beat a dull full house |
 | Game       | One CS2 season. Each player has one season hand; the strongest one wins |
@@ -121,7 +121,7 @@ A Swedish version is available in [docs/architecture-sv.png](docs/architecture-s
 | Events | A double kill, triple kill, quad kill, ace or special kill within one round becomes a card. | Only real highlight moments count, so a collection stays worth looking at. |
 | Hands | Up to five kills' worth of events form a hand, from high card to royal flush. | Familiar poker logic makes the game easy to understand. |
 | Stamps | Circumstances such as *Smoked*, *Blind* or *One shot* add points. | Two full houses are not equal; stamps reward the spectacular. |
-| Flushes | Five kills in the same area of the same map. | Ties hands to real places, e.g. five kills in Mid on de_mirage. |
+| Flushes | Five kills in the same area within five rounds in a row. | Ties hands to real places, e.g. holding Mid on de_mirage for five rounds. |
 | Straights | A kill in five rounds in a row, with five different weapon groups. | A series like a poker straight, and an active choice: you have to buy different weapons on purpose. |
 | Balance | Points are derived from how rare something is, on a capped logarithmic scale. | Keeps any single stamp or weapon from dominating, even if players farm it. |
 

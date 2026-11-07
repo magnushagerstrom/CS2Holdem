@@ -55,7 +55,8 @@ below).
 
 A hand is built from your events and contains **at most five kills**, just like five cards.
 Events in a hand always come from **different rounds**, but they may come from **any match
-during the same season**.
+during the same season**. Straights and flushes are the exception: they are built within
+five rounds in a row of a single match.
 
 Every poker hand has a CS2Holdem equivalent:
 
@@ -66,7 +67,7 @@ Every poker hand has a CS2Holdem equivalent:
 | 3  | Two pair        | two double kills                                         | 2k + 2k                              |
 | 4  | Three of a kind | one triple kill                                          | 3k                                   |
 | 5  | Straight        | one kill in each of **5 rounds in a row**, with **5 different weapon groups** | rifle, pistol, sniper, grenade, knife in rounds 7–11 |
-| 6  | Flush           | 5 kills in the **same area of the same map**             | five kills in Mid on de_mirage       |
+| 6  | Flush           | 5 kills in the **same area**, within **5 rounds in a row** | five kills in Mid on de_mirage in rounds 3–7 |
 | 7  | Full house      | one triple kill + one double kill                        | 3k + 2k                              |
 | 8  | Four of a kind  | one quad kill                                            | 4k                                   |
 | 9  | Straight flush  | a straight where all five kills are in the same area     | five rounds in a row, five weapon groups, all from Mid |
@@ -131,17 +132,22 @@ same group.
 | Grenade  | HE grenade, Molotov, Incendiary                                |
 | Melee    | Knife, Zeus x27                                                |
 
-### Flushes: same place
+### Flushes: same place, five rounds
 
 In poker a flush is five cards of the same suit. In CS2Holdem the "suit" is the **place**:
-a flush is five kills in the **same area of the same map**, e.g. five kills in *Mid* on
-*de_mirage*.
+a flush is five kills in the **same area** of the map, within **five rounds in a row** in the
+**same match**. Example: five kills in *Mid* on *de_mirage* during rounds 3–7.
 
-- The area is the callout name stored in the demo for the player's position, the same name
-  shown next to teammates in the game. No extra map data is needed.
-- *Mid* on de_mirage and *Mid* on de_dust2 are different places.
-- The kills may come from different rounds and matches during the season.
+- The area is the callout name stored in the demo for the **player's** position when the kill
+  was made, the same name shown next to teammates in the game. No extra map data is needed.
+- Ordinary single kills count, and several kills may come from the same round: a double kill
+  in Mid in round 3 plus single kills in Mid in rounds 4–7 is a flush.
 - Maps without callout names cannot produce flushes.
+
+Straights and flushes are the two hands about **dominating a stretch of a match**: a straight
+is variety over five rounds, a flush is holding one place over five rounds. A straight flush
+combines both: one kill in each of five rounds in a row, five different weapon groups, all
+from the same area.
 
 ## 4. Stamps
 

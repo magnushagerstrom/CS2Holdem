@@ -9,6 +9,7 @@ import com.robrodesign.cs2holdem.match.MatchHistoryRepository;
 import com.robrodesign.cs2holdem.match.MatchRepository;
 import com.robrodesign.cs2holdem.steam.ShareCode;
 import com.robrodesign.cs2holdem.steam.SteamMatchHistoryClient;
+import com.robrodesign.cs2holdem.steam.SteamUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -32,6 +33,10 @@ public class MatchSyncService {
     private static final Duration AFTER_NEW_MATCHES = Duration.ofMinutes(15);
     private static final Duration AFTER_NO_NEW_MATCHES = Duration.ofHours(1);
     private static final Duration MORE_MATCHES_WAITING = Duration.ofMinutes(1);
+
+    // Steam answers 429 Too Many Requests if we ask for share codes back-to-back.
+    // A short pause between the calls in one sync keeps us under that limit.
+    private static final Duration PAUSE_BETWEEN_CALLS = Duration.ofSeconds(2);
 
     private final AppUserRepository appUserRepository;
     private final MatchRepository matchRepository;
@@ -63,7 +68,23 @@ public class MatchSyncService {
         // Det skyddar Steams anropsgräns om en användare har hundratals gamla matcher.
         boolean reachedLatest = false;
         for (int i = 0; i < properties.maxCodesPerRun(); i++) {
-            Optional<String> next = steamClient.findNextShareCode(steamId64, user.getAuthCode(), current);
+            if (i > 0) {
+                pause();
+            }
+            Optional<String> next;
+            try {
+                next = steamClient.findNextShareCode(steamId64, user.getAuthCode(), current);
+            } catch (SteamUnavailableException e) {
+                // Keep the codes we already got. Without this the next sync would start from
+                // the old code and ask Steam the same questions again.
+                if (!current.equals(user.getLastKnownShareCode())) {
+                    user.recordNewShareCode(current);
+                    appUserRepository.save(user);
+                    log.info("Synced player {} partly: {} new match(es) before Steam stopped answering",
+                            steamId64, newMatches);
+                }
+                throw e;
+            }
             if (next.isEmpty()) {
                 reachedLatest = true;
                 break;
@@ -91,6 +112,17 @@ public class MatchSyncService {
         // Logga SteamID och antal, men ALDRIG auth code.
         log.info("Synced player {}: {} new match(es), next sync in {}", steamId64, newMatches, untilNextSync);
         return newMatches;
+    }
+
+    private static void pause() {
+        try {
+            Thread.sleep(PAUSE_BETWEEN_CALLS);
+        } catch (InterruptedException e) {
+            // Someone wants this thread to stop (for example the app is shutting down).
+            // Restore the flag so the caller can see it, and stop syncing.
+            Thread.currentThread().interrupt();
+            throw new SteamUnavailableException("Sync interrupted", e);
+        }
     }
 
     /** Skjuter upp nästa synk, t.ex. när Steam inte svarar. */

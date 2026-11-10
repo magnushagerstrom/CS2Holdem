@@ -56,7 +56,7 @@ cs2holdem:
     encryption-key: ${APP_ENCRYPTION_KEY}
     worker-token: ${WORKER_TOKEN}
     public-base-url: ${PUBLIC_BASE_URL:http://localhost:8080}
-    after-login-url: ${AFTER_LOGIN_URL:/api/me}
+    after-login-url: ${AFTER_LOGIN_URL:/}
     # Inloggning utan Steam, för lokal utveckling. Får ALDRIG vara true i produktion.
     dev-login-enabled: ${DEV_LOGIN:false}
   locator:

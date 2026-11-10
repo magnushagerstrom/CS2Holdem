@@ -34,7 +34,11 @@ public class LoginService {
 
         // A new session id at login prevents "session fixation": an attacker cannot hand the
         // victim a session id before login and then use it afterwards.
-        request.changeSessionId();
+        // A first-time visitor has no session yet, and then there is nothing to change:
+        // saveContext below creates a brand new session for them.
+        if (request.getSession(false) != null) {
+            request.changeSessionId();
+        }
 
         var authentication = new UsernamePasswordAuthenticationToken(steamId64, null,
                 List.of(new SimpleGrantedAuthority("ROLE_PLAYER")));

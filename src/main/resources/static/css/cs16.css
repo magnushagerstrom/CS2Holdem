@@ -160,6 +160,9 @@ h2 {
 
 .dim { color: var(--text-dim); }
 .error { color: var(--danger); }
+.button.danger { color: var(--danger); }
+.button.danger:hover { color: var(--highlight); }
+.legal a { color: inherit; }
 
 /* ---------- Buttons and fields: raised, and sunken when pressed ---------- */
 

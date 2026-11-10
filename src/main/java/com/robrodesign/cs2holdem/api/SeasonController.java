@@ -1,5 +1,6 @@
 package com.robrodesign.cs2holdem.api;
 
+import com.robrodesign.cs2holdem.account.AppUserRepository;
 import com.robrodesign.cs2holdem.player.Player;
 import com.robrodesign.cs2holdem.player.PlayerRepository;
 import com.robrodesign.cs2holdem.season.Season;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -24,12 +26,14 @@ public class SeasonController {
     private final SeasonService seasonService;
     private final SeasonHandService seasonHandService;
     private final PlayerRepository playerRepository;
+    private final AppUserRepository appUserRepository;
 
     public SeasonController(SeasonService seasonService, SeasonHandService seasonHandService,
-                            PlayerRepository playerRepository) {
+                            PlayerRepository playerRepository, AppUserRepository appUserRepository) {
         this.seasonService = seasonService;
         this.seasonHandService = seasonHandService;
         this.playerRepository = playerRepository;
+        this.appUserRepository = appUserRepository;
     }
 
     // GET /api/seasons : alla säsonger, nyast först
@@ -60,6 +64,7 @@ public class SeasonController {
         List<SeasonHand> hands = seasonHandService.leaderboard(season);
         Map<Long, Player> players = playerRepository.findAllById(hands.stream().map(SeasonHand::getSteamId64).toList())
                 .stream().collect(Collectors.toMap(Player::getSteamId64, Function.identity()));
+        Set<Long> registered = players.isEmpty() ? Set.of() : appUserRepository.findRegisteredAmong(players.keySet());
 
         List<LeaderboardEntryView> entries = new ArrayList<>();
         int rank = 1;
@@ -74,7 +79,8 @@ public class SeasonController {
                     hand.getHandType().displayName(),
                     hand.getScore(),
                     hand.getTotalDamage(),
-                    hand.isCustom()));
+                    hand.isCustom(),
+                    registered.contains(hand.getSteamId64())));
         }
         return entries;
     }

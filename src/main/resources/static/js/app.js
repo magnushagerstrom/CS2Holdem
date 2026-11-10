@@ -163,8 +163,9 @@ function killHtml(kill) {
 function drawMenu(route) {
   const items = state.me
     ? [['#/hand', 'My hand'], ['#/player/' + state.me.steamId64, 'My profile'], ['#/collection', 'Collection'], ['#/matches', 'Matches'],
-       ['#/leaderboard', 'Leaderboard'], ['#/how', 'How it works']]
-    : [['/auth/steam', 'Sign in through Steam'], ['#/how', 'How it works'], ['#/leaderboard', 'Leaderboard']];
+       ['#/leaderboard', 'Leaderboard'], ['#/how', 'How it works'], ['#/privacy', 'Privacy']]
+    : [['/auth/steam', 'Sign in through Steam'], ['#/how', 'How it works'], ['#/leaderboard', 'Leaderboard'],
+       ['#/privacy', 'Privacy']];
 
   const links = items.map(([href, text]) => {
     const current = href === '#' + route ? ' aria-current="page"' : '';
@@ -297,6 +298,72 @@ function signInFailed() {
     <p class="dim">If it keeps happening, check that Steam's own site works:
       <a href="https://steamcommunity.com" target="_blank" rel="noopener">steamcommunity.com</a>.</p>
     <div class="buttons"><a class="button" href="/auth/steam">Try again</a></div>`);
+}
+
+function privacy() {
+  const signedIn = Boolean(state.me);
+  drawWindow('Privacy', `
+    <p>CS2Holdem reads the demos of matches its players have played, and turns the best rounds into
+      cards. This is what that means for your data.</p>
+
+    <h2>What we store</h2>
+    <ul>
+      <li>Your SteamID, Steam name and avatar.</li>
+      <li>For every match we read: your kills, cards and scoreboard numbers (kills, deaths, damage and so on).</li>
+      <li>If you registered: the match history code you gave us, encrypted, so we can find your new matches.</li>
+    </ul>
+    <p>We do not store your Steam password, your email, chat messages or anything outside the matches.</p>
+
+    <h2>Where it comes from</h2>
+    <p>Names, avatars and lifetime statistics come from Steam's public profile. Everything else
+      comes from the match demos that Valve publishes for every matchmaking game.</p>
+
+    <h2>Who can see it</h2>
+    <p>Only players who registered have a public profile. If you played with a registered friend
+      but never signed up yourself, you show up as a name on their match and nowhere else.</p>
+
+    <h2>How long we keep it</h2>
+    <p>Registered players: until you delete your account. Everyone else: data about you is deleted
+      automatically when your latest match with us is 60 days old. That gives friends time to sign up
+      and keep their old cards.</p>
+
+    <h2>Delete your data</h2>
+    <p>Sign in through Steam and press the button below. Everything about you is deleted at once:
+      cards, kills, hands, statistics and your account. We then keep only your SteamID on a list,
+      so that your future matches are not stored again. Registering later takes you off that list.</p>
+    ${signedIn
+      ? `<div class="buttons" id="delete-area">
+           <button type="button" class="button danger" id="delete-start">Delete my data</button>
+         </div>`
+      : `<div class="buttons"><a class="button" href="/auth/steam">Sign in through Steam</a></div>`}
+    <p class="dim">Questions: open an issue on the project's GitHub page.</p>`);
+
+  if (!signedIn) return;
+  // Two steps: the first press only asks, so nobody deletes a season of cards by a slip of the mouse
+  document.getElementById('delete-start').addEventListener('click', () => {
+    const area = document.getElementById('delete-area');
+    area.innerHTML = `
+      <p class="error">This deletes all your cards, hands and statistics, and cannot be undone. Are you sure?</p>
+      <div class="buttons">
+        <button type="button" class="button danger" id="delete-confirm">Yes, delete everything</button>
+        <button type="button" class="button" id="delete-cancel">Cancel</button>
+      </div>`;
+    document.getElementById('delete-cancel').addEventListener('click', privacy);
+    document.getElementById('delete-confirm').addEventListener('click', async (event) => {
+      event.target.disabled = true;
+      try {
+        await api('/api/me', { method: 'DELETE' });
+        state.me = null; // the server has signed us out too
+        drawMenu('/privacy');
+        drawWindow('Data deleted', `
+          <p>Everything about you has been deleted and you have been signed out.
+            Your future matches will not be stored.</p>
+          <div class="buttons"><a class="button" href="#/how">How it works</a></div>`);
+      } catch (e) {
+        area.innerHTML = `<p class="error">${esc(e.message)}</p>`;
+      }
+    });
+  });
 }
 
 function register() {
@@ -559,6 +626,11 @@ async function profile(steamId64) {
 
     if (s.matches > 0) lifetime(steamId64);
   } catch (e) {
+    if (e.status === 404) {
+      drawWindow('Player', `<p>This player has no public profile. Only players who signed up
+        themselves get one.</p><p class="dim"><a href="#/privacy">Why?</a></p>`);
+      return;
+    }
     drawError('Player', e);
   }
 }
@@ -593,7 +665,9 @@ async function leaderboard() {
     ]);
     const rows = entries.map(e => `<tr>
         <td class="num">${e.rank}</td>
-        <td class="player">${avatar(e.avatarUrl)}<a href="#/player/${esc(e.steamId64)}">${esc(e.displayName || e.steamId64)}</a></td>
+        <td class="player">${avatar(e.avatarUrl)}${e.registered
+          ? `<a href="#/player/${esc(e.steamId64)}">${esc(e.displayName || e.steamId64)}</a>`
+          : esc(e.displayName || 'Unknown player')}</td>
         <td>${esc(e.typeName)}</td>
         <td class="num">${e.score}</td>
       </tr>`).join('');
@@ -620,6 +694,7 @@ const ROUTES = {
   '/build': build,
   '/signin-cancelled': signInCancelled,
   '/signin-failed': signInFailed,
+  '/privacy': privacy,
 };
 const NEEDS_LOGIN = ['/register', '/matches', '/collection', '/hand', '/build'];
 

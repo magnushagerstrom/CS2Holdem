@@ -1,5 +1,6 @@
 package com.robrodesign.cs2holdem.api;
 
+import com.robrodesign.cs2holdem.account.AppUserRepository;
 import com.robrodesign.cs2holdem.collection.CollectionService;
 import com.robrodesign.cs2holdem.collection.PlayerCollection;
 import com.robrodesign.cs2holdem.hand.Event;
@@ -26,8 +27,9 @@ import java.util.List;
 /**
  * A player's collection and season hands.
  *
- * Reading is public, so friends can look at each other's hands. Changing a hand is only allowed
- * for the logged-in player themselves (see SecurityConfig and CurrentPlayer).
+ * Reading is public for registered players, so friends can look at each other's hands.
+ * Players who never signed up have no profile here (404), see requirePublicProfile.
+ * Changing a hand is only allowed for the logged-in player themselves (see SecurityConfig and CurrentPlayer).
  */
 @RestController
 @RequestMapping("/api/players/{steamId64}")
@@ -39,22 +41,37 @@ public class PlayerController {
     private final CurrentPlayer currentPlayer;
     private final PlayerStatsService statsService;
     private final SteamLifetimeStatsClient lifetimeClient;
+    private final AppUserRepository appUserRepository;
 
     public PlayerController(CollectionService collectionService, SeasonService seasonService,
                             SeasonHandService seasonHandService, CurrentPlayer currentPlayer,
-                            PlayerStatsService statsService, SteamLifetimeStatsClient lifetimeClient) {
+                            PlayerStatsService statsService, SteamLifetimeStatsClient lifetimeClient,
+                            AppUserRepository appUserRepository) {
         this.collectionService = collectionService;
         this.seasonService = seasonService;
         this.seasonHandService = seasonHandService;
         this.currentPlayer = currentPlayer;
         this.statsService = statsService;
         this.lifetimeClient = lifetimeClient;
+        this.appUserRepository = appUserRepository;
+    }
+
+    /**
+     * Profiles are public only for registered players. You can always see your own, which matters
+     * in the second between registering and the first sync.
+     */
+    private void requirePublicProfile(long steamId64) {
+        boolean self = currentPlayer.steamId64().filter(id -> id == steamId64).isPresent();
+        if (!self && !appUserRepository.existsById(steamId64)) {
+            throw new ProfileNotPublicException();
+        }
     }
 
     // GET /api/players/{id}/stats?seasonId=... : profilsidan, nuvarande säsong om inget anges
     @GetMapping("/stats")
     public PlayerStatsView stats(@PathVariable("steamId64") long steamId64,
                                  @RequestParam(name = "seasonId", required = false) Long seasonId) {
+        requirePublicProfile(steamId64);
         Season season = seasonId == null ? seasonService.current() : seasonService.byId(seasonId);
         return PlayerStatsView.from(statsService.profile(steamId64, season));
     }
@@ -62,6 +79,7 @@ public class PlayerController {
     // GET /api/players/{id}/lifetime : Steams livstidssiffror, om profilen är offentlig
     @GetMapping("/lifetime")
     public LifetimeStatsView lifetime(@PathVariable("steamId64") long steamId64) {
+        requirePublicProfile(steamId64);
         return lifetimeClient.fetch(steamId64).map(LifetimeStatsView::from).orElseGet(LifetimeStatsView::unavailable);
     }
 
@@ -69,6 +87,7 @@ public class PlayerController {
     @GetMapping("/collection")
     public CollectionView collection(@PathVariable("steamId64") long steamId64,
                                      @RequestParam(name = "seasonId", required = false) Long seasonId) {
+        requirePublicProfile(steamId64);
         Season season = seasonId == null ? seasonService.current() : seasonService.byId(seasonId);
         PlayerCollection collection = collectionService.load(steamId64, season.getStartsAt(), season.getEndsAt());
 
@@ -84,6 +103,7 @@ public class PlayerController {
     // GET /api/players/{id}/hand : säsongshanden just nu
     @GetMapping("/hand")
     public ResponseEntity<HandView> currentHand(@PathVariable("steamId64") long steamId64) {
+        requirePublicProfile(steamId64);
         return seasonHandService.currentHand(steamId64)
                 .map(HandView::from)
                 .map(ResponseEntity::ok)
@@ -93,6 +113,7 @@ public class PlayerController {
     // GET /api/players/{id}/hands : alla säsongshänder någonsin, nyast först
     @GetMapping("/hands")
     public List<HandView> allHands(@PathVariable("steamId64") long steamId64) {
+        requirePublicProfile(steamId64);
         return seasonHandService.allHands(steamId64).stream().map(HandView::from).toList();
     }
 

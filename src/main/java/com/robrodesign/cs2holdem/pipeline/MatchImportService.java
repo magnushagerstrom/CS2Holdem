@@ -20,6 +20,7 @@ import com.robrodesign.cs2holdem.match.MatchPlayerStatsRepository;
 import com.robrodesign.cs2holdem.match.MatchRepository;
 import com.robrodesign.cs2holdem.player.Player;
 import com.robrodesign.cs2holdem.player.PlayerRepository;
+import com.robrodesign.cs2holdem.privacy.PrivacyService;
 import com.robrodesign.cs2holdem.season.Season;
 import com.robrodesign.cs2holdem.season.SeasonHandService;
 import com.robrodesign.cs2holdem.season.SeasonService;
@@ -28,9 +29,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Takes what the demo parser found in a match and stores it as cards and kills,
@@ -51,11 +56,13 @@ public class MatchImportService {
     private final SeasonService seasonService;
     private final SeasonHandService seasonHandService;
     private final MatchPlayerStatsRepository statsRepository;
+    private final PrivacyService privacyService;
 
     public MatchImportService(MatchRepository matchRepository, PlayerRepository playerRepository,
                               AppUserRepository appUserRepository, StoredCardRepository cardRepository,
                               StoredKillRepository killRepository, SeasonService seasonService,
-                              SeasonHandService seasonHandService, MatchPlayerStatsRepository statsRepository) {
+                              SeasonHandService seasonHandService, MatchPlayerStatsRepository statsRepository,
+                              PrivacyService privacyService) {
         this.matchRepository = matchRepository;
         this.playerRepository = playerRepository;
         this.appUserRepository = appUserRepository;
@@ -64,6 +71,7 @@ public class MatchImportService {
         this.seasonService = seasonService;
         this.seasonHandService = seasonHandService;
         this.statsRepository = statsRepository;
+        this.privacyService = privacyService;
     }
 
     @Transactional
@@ -83,10 +91,24 @@ public class MatchImportService {
         match.markParsed(parsed.mapName(), parsed.playedAt(), parsed.durationSeconds(),
                 parsed.team1Score(), parsed.team2Score());
 
-        // 3. Find every player's cards and store them
+        // 3. Find every player's cards and store them. Players who asked to be deleted are skipped
+        //    everywhere below: nothing about them is stored, not even that they played.
+        Set<Long> everyone = new HashSet<>();
+        parsed.kills().forEach(k -> {
+            everyone.add(k.killerSteamId());
+            everyone.add(k.victimSteamId());
+        });
+        parsed.players().forEach(p -> everyone.add(p.steamId()));
+        Set<Long> optedOut = privacyService.optedOut(everyone);
+
         int cards = 0;
         int kills = 0;
-        Iterable<DetectionResult> results = EventDetector.detectAll(parsed);
+        List<DetectionResult> results = new ArrayList<>();
+        EventDetector.detectAll(parsed).forEach(r -> {
+            if (!optedOut.contains(r.steamId64())) {
+                results.add(r);
+            }
+        });
         for (DetectionResult result : results) {
             ensurePlayer(result.steamId64());
             cards += result.events().size();
@@ -96,6 +118,9 @@ public class MatchImportService {
         // 4. Store every player's statistics for the match, and their in-game name if Steam's
         //    name has not been fetched yet (it replaces this one within a minute)
         for (PlayerMatchStats stats : PlayerStatsCalculator.calculate(parsed)) {
+            if (optedOut.contains(stats.steamId())) {
+                continue;
+            }
             Player player = ensurePlayer(stats.steamId());
             if (player.getDisplayName() == null && stats.name() != null && !stats.name().isBlank()) {
                 player.setDisplayName(stats.name().length() > 64 ? stats.name().substring(0, 64) : stats.name());

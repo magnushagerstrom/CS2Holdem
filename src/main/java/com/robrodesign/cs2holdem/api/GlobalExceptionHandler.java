@@ -102,6 +102,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.FORBIDDEN, "Forbidden", e.getMessage());
     }
 
+    @ExceptionHandler(ProfileNotPublicException.class)
+    ProblemDetail handleProfileNotPublic(ProfileNotPublicException e) {
+        return problem(HttpStatus.NOT_FOUND, "No public profile", e.getMessage());
+    }
+
     @ExceptionHandler(NumberFormatException.class)
     ProblemDetail handleBadId(NumberFormatException e) {
         return problem(HttpStatus.BAD_REQUEST, "Invalid id", "Ids must be numbers written as strings");

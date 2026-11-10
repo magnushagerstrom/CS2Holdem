@@ -70,6 +70,12 @@ cs2holdem:
     token-file: ${STEAM_BOT_TOKEN_FILE:./data/steam-bot/refresh-token}
     # CS2-versionen boten uppger för Game Coordinator. Utan den nekas inloggningen (fel 9187).
     client-version: ${CS2_CLIENT_VERSION:2000202}
+  privacy:
+    # Data om spelare som inte har registrerat sig raderas när deras senaste match är äldre än så här.
+    # Kompisar hinner alltså registrera sig och behålla sina gamla kort. Skrivs som 60d, 12h osv.
+    unregistered-retention: ${UNREGISTERED_RETENTION:60d}
+    # Städjobbet körs varje natt kl 04:17.
+    cleanup-enabled: ${PRIVACY_CLEANUP_ENABLED:true}
   demos:
     # Uppladdade demos väntar här tills workern har läst dem. På AWS: byt till S3.
     directory: ${DEMO_DIRECTORY:./data/demos}

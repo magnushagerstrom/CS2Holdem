@@ -5,6 +5,7 @@ import in.dragonbra.javasteam.base.gc.ClientGCMsgProtobuf;
 import in.dragonbra.javasteam.enums.EMsg;
 import in.dragonbra.javasteam.enums.EResult;
 import in.dragonbra.javasteam.protobufs.cs.Cstrike15Gcmessages.CDataGCCStrike15_v2_MatchInfo;
+import in.dragonbra.javasteam.protobufs.cs.Cstrike15Gcmessages.CMsgGCCStrike15_v2_ClientLogonFatalError;
 import in.dragonbra.javasteam.protobufs.cs.Cstrike15Gcmessages.CMsgGCCStrike15_v2_MatchList;
 import in.dragonbra.javasteam.protobufs.cs.Cstrike15Gcmessages.CMsgGCCStrike15_v2_MatchListRequestFullGameInfo;
 import in.dragonbra.javasteam.protobufs.cs.Cstrike15Gcmessages.ECsgoGCMsg;
@@ -84,6 +85,7 @@ public class GameCoordinatorClient implements SmartLifecycle {
     private volatile Instant nextConnectAt = Instant.EPOCH;
     private volatile Instant nextHelloAt = Instant.EPOCH;
     private volatile Pending pending;
+    private volatile int hellosSent;
     private Thread thread;
 
     /** The question we are waiting for an answer to. We ask one at a time. */
@@ -263,25 +265,44 @@ public class GameCoordinatorClient implements SmartLifecycle {
 
     private void sayHello() {
         nextHelloAt = Instant.now().plus(HELLO_INTERVAL);
+        hellosSent++;
+        // Every sixth hello (about every 30 seconds): tell the log we are still waiting, so a
+        // silent Game Coordinator is visible instead of looking like a frozen app.
+        if (hellosSent % 6 == 0) {
+            log.warn("Still no answer from the CS2 Game Coordinator after {} hellos. "
+                    + "Does the bot account have CS2 in its library?", hellosSent);
+        }
         var hello = new ClientGCMsgProtobuf<CMsgClientHello.Builder>(
                 CMsgClientHello.class, EGCBaseClientMsg.k_EMsgGCClientHello_VALUE);
+        // The CS2 GC refuses a hello without a client version (ClientLogonFatalError 9187).
+        // Any CS2-era version is accepted; it is a setting so it can be raised without a rebuild.
+        hello.getBody().setVersion(properties.clientVersion());
         gameCoordinator.send(hello, CS2_APP_ID);
     }
 
     private void onGcMessage(MessageCallback callback) {
+        int type = callback.getEMsg();
+        log.debug("Game Coordinator message {} from app {}", type, callback.getAppID());
         if (callback.getAppID() != CS2_APP_ID) {
             return;
         }
-        int type = callback.getEMsg();
         if (type == EGCBaseClientMsg.k_EMsgGCClientWelcome_VALUE) {
             if (!ready) {
-                log.info("The CS2 Game Coordinator is ready");
+                log.info("The CS2 Game Coordinator is ready (after {} hellos)", hellosSent);
             }
+            hellosSent = 0;
             ready = true;
         } else if (type == EGCBaseClientMsg.k_EMsgGCClientConnectionStatus_VALUE) {
             // The GC lost track of us (for example after a Valve update). Say hello again.
             log.info("The CS2 Game Coordinator dropped the session, saying hello again");
             ready = false;
+        } else if (type == ECsgoGCMsg.k_EMsgGCCStrike15_v2_ClientLogonFatalError_VALUE) {
+            // The GC refuses this account, and says why. Typical reasons: the account is
+            // limited, banned from matchmaking, or has not accepted something in the CS2 client.
+            var error = new ClientGCMsgProtobuf<CMsgGCCStrike15_v2_ClientLogonFatalError.Builder>(
+                    CMsgGCCStrike15_v2_ClientLogonFatalError.class, callback.getMessage()).getBody();
+            log.error("The CS2 Game Coordinator refused the bot account: error {}, \"{}\"",
+                    error.getErrorcode(), error.getMessage());
         } else if (type == ECsgoGCMsg.k_EMsgGCCStrike15_v2_MatchList_VALUE) {
             var message = new ClientGCMsgProtobuf<CMsgGCCStrike15_v2_MatchList.Builder>(
                     CMsgGCCStrike15_v2_MatchList.class, callback.getMessage());

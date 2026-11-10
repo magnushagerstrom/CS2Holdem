@@ -29,7 +29,7 @@ class EventDetectorTest {
         for (ParsedKillBuilder kill : kills) {
             parsed.add(kill.build());
         }
-        return new ParsedMatch(MATCH_ID, "de_mirage", Instant.EPOCH, 2400, 13, 11, rounds, parsed);
+        return new ParsedMatch(MATCH_ID, "de_mirage", Instant.EPOCH, 2400, 13, 11, rounds, parsed, List.of());
     }
 
     private static int decidedTick(int round) {

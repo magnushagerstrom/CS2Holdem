@@ -29,6 +29,7 @@ final class ParsedKillBuilder {
     private boolean killerLastAlive;
     private Long grenadeId;
     private String place = "Mid";
+    private int firstDamageTick;
 
     static ParsedKillBuilder kill() {
         return new ParsedKillBuilder();
@@ -55,10 +56,13 @@ final class ParsedKillBuilder {
     ParsedKillBuilder lastAlive() { killerLastAlive = true; return this; }
     ParsedKillBuilder grenade(long id) { grenadeId = id; return this; }
     ParsedKillBuilder place(String value) { place = value; return this; }
+    ParsedKillBuilder firstDamage(int value) { firstDamageTick = value; return this; }
+    ParsedKillBuilder killer(long steamId, int team) { killer = steamId; killerTeam = team; return this; }
+    ParsedKillBuilder victim(long steamId, int team) { victim = steamId; victimTeam = team; return this; }
 
     ParsedKill build() {
         return new ParsedKill(round, tick, warmup, killer, killerIsBot, killerTeam, victim, victimIsBot,
                 victimTeam, weapon, damage, headshot, wallbang, throughSmoke, noScope, killerBlind,
-                victimBlind, killerBurning, victimBurning, killerLastAlive, grenadeId, place);
+                victimBlind, killerBurning, victimBurning, killerLastAlive, grenadeId, place, firstDamageTick);
     }
 }

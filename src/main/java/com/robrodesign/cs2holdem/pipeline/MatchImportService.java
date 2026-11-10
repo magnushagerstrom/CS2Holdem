@@ -8,11 +8,15 @@ import com.robrodesign.cs2holdem.collection.StoredKillRepository;
 import com.robrodesign.cs2holdem.detection.DetectionResult;
 import com.robrodesign.cs2holdem.detection.EventDetector;
 import com.robrodesign.cs2holdem.detection.ParsedMatch;
+import com.robrodesign.cs2holdem.detection.PlayerMatchStats;
+import com.robrodesign.cs2holdem.detection.PlayerStatsCalculator;
 import com.robrodesign.cs2holdem.hand.Event;
 import com.robrodesign.cs2holdem.hand.Kill;
 import com.robrodesign.cs2holdem.hand.RoundKill;
 import com.robrodesign.cs2holdem.match.Match;
 import com.robrodesign.cs2holdem.match.MatchNotFoundException;
+import com.robrodesign.cs2holdem.match.MatchPlayerStats;
+import com.robrodesign.cs2holdem.match.MatchPlayerStatsRepository;
 import com.robrodesign.cs2holdem.match.MatchRepository;
 import com.robrodesign.cs2holdem.player.Player;
 import com.robrodesign.cs2holdem.player.PlayerRepository;
@@ -46,11 +50,12 @@ public class MatchImportService {
     private final StoredKillRepository killRepository;
     private final SeasonService seasonService;
     private final SeasonHandService seasonHandService;
+    private final MatchPlayerStatsRepository statsRepository;
 
     public MatchImportService(MatchRepository matchRepository, PlayerRepository playerRepository,
                               AppUserRepository appUserRepository, StoredCardRepository cardRepository,
                               StoredKillRepository killRepository, SeasonService seasonService,
-                              SeasonHandService seasonHandService) {
+                              SeasonHandService seasonHandService, MatchPlayerStatsRepository statsRepository) {
         this.matchRepository = matchRepository;
         this.playerRepository = playerRepository;
         this.appUserRepository = appUserRepository;
@@ -58,6 +63,7 @@ public class MatchImportService {
         this.killRepository = killRepository;
         this.seasonService = seasonService;
         this.seasonHandService = seasonHandService;
+        this.statsRepository = statsRepository;
     }
 
     @Transactional
@@ -70,6 +76,7 @@ public class MatchImportService {
         // 1. Remove anything from an earlier import of this match. Kills first: they point at cards.
         killRepository.deleteForMatch(matchId);
         cardRepository.deleteForMatch(matchId);
+        statsRepository.deleteForMatch(matchId);
 
         // 2. Store the match facts. Loaded after the deletes, which clear Hibernate's memory.
         Match match = matchRepository.findById(matchId).orElseThrow(() -> new MatchNotFoundException(matchId));
@@ -86,7 +93,17 @@ public class MatchImportService {
             kills += store(result);
         }
 
-        // 4. Update the season hands of registered players
+        // 4. Store every player's statistics for the match, and their in-game name if Steam's
+        //    name has not been fetched yet (it replaces this one within a minute)
+        for (PlayerMatchStats stats : PlayerStatsCalculator.calculate(parsed)) {
+            Player player = ensurePlayer(stats.steamId());
+            if (player.getDisplayName() == null && stats.name() != null && !stats.name().isBlank()) {
+                player.setDisplayName(stats.name().length() > 64 ? stats.name().substring(0, 64) : stats.name());
+            }
+            statsRepository.save(new MatchPlayerStats(match, player, stats));
+        }
+
+        // 5. Update the season hands of registered players
         Optional<Season> season = parsed.playedAt() == null
                 ? Optional.empty() : seasonService.containing(parsed.playedAt());
         int players = 0;
@@ -133,9 +150,8 @@ public class MatchImportService {
         return result.roundKills().size();
     }
 
-    private void ensurePlayer(long steamId64) {
-        if (!playerRepository.existsById(steamId64)) {
-            playerRepository.save(new Player(steamId64, null));
-        }
+    private Player ensurePlayer(long steamId64) {
+        return playerRepository.findById(steamId64)
+                .orElseGet(() -> playerRepository.save(new Player(steamId64, null)));
     }
 }

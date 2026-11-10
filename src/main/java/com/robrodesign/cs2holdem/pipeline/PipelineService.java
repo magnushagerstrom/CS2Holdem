@@ -105,9 +105,7 @@ public class PipelineService {
         if (parsed.playedAt() == null) {
             // A demo file does not say when it was played. We found the match within minutes of it
             // ending (the sync runs often), so the discovery time is a good stand-in for the season.
-            parsed = new ParsedMatch(parsed.matchId(), parsed.mapName(), match.getCreatedAt(),
-                    parsed.durationSeconds(), parsed.team1Score(), parsed.team2Score(),
-                    parsed.rounds(), parsed.kills());
+            parsed = parsed.withPlayedAt(match.getCreatedAt());
         }
         ImportResult result = importService.importMatch(parsed);
         if (demoKey != null) {

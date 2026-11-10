@@ -11,6 +11,8 @@ package com.robrodesign.cs2holdem.detection;
  * @param grenadeId       id of the grenade entity for grenade kills, otherwise null
  * @param killerPlace     callout name of the killer's position, e.g. "Mid", or null if unknown
  * @param killerLastAlive the killer was the last player alive in their team
+ * @param firstDamageTick when the killer first hurt this victim in the round, 0 if unknown.
+ *                        Used for time to kill.
  */
 public record ParsedKill(
         int round,
@@ -34,6 +36,7 @@ public record ParsedKill(
         boolean victimBurning,
         boolean killerLastAlive,
         Long grenadeId,
-        String killerPlace
+        String killerPlace,
+        int firstDamageTick
 ) {
 }

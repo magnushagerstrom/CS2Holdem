@@ -7,6 +7,9 @@ import com.robrodesign.cs2holdem.hand.RoundKill;
 import com.robrodesign.cs2holdem.season.Season;
 import com.robrodesign.cs2holdem.season.SeasonHandService;
 import com.robrodesign.cs2holdem.season.SeasonService;
+import com.robrodesign.cs2holdem.stats.LifetimeStatsView;
+import com.robrodesign.cs2holdem.stats.PlayerStatsService;
+import com.robrodesign.cs2holdem.steam.SteamLifetimeStatsClient;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -34,13 +37,32 @@ public class PlayerController {
     private final SeasonService seasonService;
     private final SeasonHandService seasonHandService;
     private final CurrentPlayer currentPlayer;
+    private final PlayerStatsService statsService;
+    private final SteamLifetimeStatsClient lifetimeClient;
 
     public PlayerController(CollectionService collectionService, SeasonService seasonService,
-                            SeasonHandService seasonHandService, CurrentPlayer currentPlayer) {
+                            SeasonHandService seasonHandService, CurrentPlayer currentPlayer,
+                            PlayerStatsService statsService, SteamLifetimeStatsClient lifetimeClient) {
         this.collectionService = collectionService;
         this.seasonService = seasonService;
         this.seasonHandService = seasonHandService;
         this.currentPlayer = currentPlayer;
+        this.statsService = statsService;
+        this.lifetimeClient = lifetimeClient;
+    }
+
+    // GET /api/players/{id}/stats?seasonId=... : profilsidan, nuvarande säsong om inget anges
+    @GetMapping("/stats")
+    public PlayerStatsView stats(@PathVariable("steamId64") long steamId64,
+                                 @RequestParam(name = "seasonId", required = false) Long seasonId) {
+        Season season = seasonId == null ? seasonService.current() : seasonService.byId(seasonId);
+        return PlayerStatsView.from(statsService.profile(steamId64, season));
+    }
+
+    // GET /api/players/{id}/lifetime : Steams livstidssiffror, om profilen är offentlig
+    @GetMapping("/lifetime")
+    public LifetimeStatsView lifetime(@PathVariable("steamId64") long steamId64) {
+        return lifetimeClient.fetch(steamId64).map(LifetimeStatsView::from).orElseGet(LifetimeStatsView::unavailable);
     }
 
     // GET /api/players/{id}/collection?seasonId=... : alla kort och kills, nuvarande säsong om inget anges

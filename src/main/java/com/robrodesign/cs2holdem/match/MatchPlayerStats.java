@@ -1,8 +1,11 @@
 package com.robrodesign.cs2holdem.match;
 
+import com.robrodesign.cs2holdem.detection.PlayerMatchStats;
 import com.robrodesign.cs2holdem.player.Player;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -14,7 +17,10 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/** En spelares prestation i en match. */
+/**
+ * One player's performance in one match, as raw sums (see V1 and V5).
+ * Averages and percentages are worked out when shown, so totals over many matches stay exact.
+ */
 @Entity
 @Table(name = "match_player_stats")
 @Getter
@@ -37,6 +43,10 @@ public class MatchPlayerStats {
     @Column(name = "team", nullable = false)
     private int team; // 1 eller 2, se team1_score/team2_score i matches
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "result", nullable = false, length = 4)
+    private PlayerMatchStats.MatchResult result;
+
     @Column(name = "kills", nullable = false)
     private int kills;
 
@@ -46,11 +56,17 @@ public class MatchPlayerStats {
     @Column(name = "assists", nullable = false)
     private int assists;
 
+    @Column(name = "flash_assists", nullable = false)
+    private int flashAssists;
+
     @Column(name = "headshot_kills", nullable = false)
     private int headshotKills;
 
     @Column(name = "damage_total", nullable = false)
     private int damageTotal;
+
+    @Column(name = "utility_damage", nullable = false)
+    private int utilityDamage;
 
     @Column(name = "rounds_played", nullable = false)
     private int roundsPlayed;
@@ -58,27 +74,43 @@ public class MatchPlayerStats {
     @Column(name = "mvps", nullable = false)
     private int mvps;
 
-    public MatchPlayerStats(Match match, Player player, int team, int kills, int deaths, int assists,
-                            int headshotKills, int damageTotal, int roundsPlayed, int mvps) {
+    @Column(name = "shots_fired", nullable = false)
+    private int shotsFired;
+
+    @Column(name = "shots_hit", nullable = false)
+    private int shotsHit;
+
+    @Column(name = "opening_kills", nullable = false)
+    private int openingKills;
+
+    @Column(name = "opening_deaths", nullable = false)
+    private int openingDeaths;
+
+    @Column(name = "ttk_ticks", nullable = false)
+    private long ttkTicks;
+
+    @Column(name = "ttk_kills", nullable = false)
+    private int ttkKills;
+
+    public MatchPlayerStats(Match match, Player player, PlayerMatchStats stats) {
         this.match = match;
         this.player = player;
-        this.team = team;
-        this.kills = kills;
-        this.deaths = deaths;
-        this.assists = assists;
-        this.headshotKills = headshotKills;
-        this.damageTotal = damageTotal;
-        this.roundsPlayed = roundsPlayed;
-        this.mvps = mvps;
-    }
-
-    /** Average Damage per Round. Räknas fram, sparas inte. */
-    public double calculateAdr() {
-        return roundsPlayed == 0 ? 0.0 : (double) damageTotal / roundsPlayed;
-    }
-
-    /** Andel kills som var headshots, i procent. */
-    public double calculateHeadshotPercentage() {
-        return kills == 0 ? 0.0 : 100.0 * headshotKills / kills;
+        this.team = stats.team();
+        this.result = stats.result();
+        this.kills = stats.kills();
+        this.deaths = stats.deaths();
+        this.assists = stats.assists();
+        this.flashAssists = stats.flashAssists();
+        this.headshotKills = stats.headshotKills();
+        this.damageTotal = stats.damage();
+        this.utilityDamage = stats.utilityDamage();
+        this.roundsPlayed = stats.roundsPlayed();
+        this.mvps = stats.mvps();
+        this.shotsFired = stats.shotsFired();
+        this.shotsHit = stats.shotsHit();
+        this.openingKills = stats.openingKills();
+        this.openingDeaths = stats.openingDeaths();
+        this.ttkTicks = stats.ttkTicks();
+        this.ttkKills = stats.ttkKills();
     }
 }

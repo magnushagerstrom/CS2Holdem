@@ -2,9 +2,7 @@
 
 Reads CS2 demo files and sends every kill to the Java server, which turns them into cards.
 
-> **Status: written but not yet run.** It was written without network access, so it has never
-> been compiled against the library. Expect small fixes the first time (`go build` will point
-> at them). The Java side it talks to is tested.
+> **Status: working.** Tested against real CS2 Premier demos fetched through the Game Coordinator.
 
 ## Why Go, and why a separate program?
 
@@ -16,7 +14,9 @@ Reads CS2 demo files and sends every kill to the Java server, which turns them i
 ## How it works
 
 1. Every few seconds: `GET /internal/jobs/parse` ("any demos to read?")
-2. Download the demo, from Valve's link or from our server (uploaded demos), and unpack `.bz2`
+2. Download the demo in full to a temporary file, from Valve's link or from our server
+   (uploaded demos). A broken download is resumed where it stopped, and the size is checked
+   against what the server promised before anything is read. Then unpack `.bz2`
 3. Read it with demoinfocs: kills, damage, rounds, positions
 4. `POST /internal/matches/{id}/parsed` with the result, or `/failed` with the error
 
@@ -33,9 +33,10 @@ WORKER_TOKEN=<same value as in ../.env> go run .
 
 On Windows PowerShell: `$env:WORKER_TOKEN="..."; go run .`
 
-## Not built yet
+## Where the demos come from
 
-**Locating demos automatically.** To get Valve's download link for a match, a program has to
-log in to Steam with a real account and ask CS2's Game Coordinator (`/internal/jobs/locate`
-exists on the server for this). Until that is built, players upload their demos themselves:
-`POST /api/matches/{id}/demo`.
+The Java server's `locator` module logs in a bot Steam account and asks CS2's Game Coordinator
+for each match's download link. The worker only sees the finished job: a match id and a link to
+Valve's replay server. Players can also upload a demo themselves (`POST /api/matches/{id}/demo`),
+for example when Valve's copy has expired; the job then has no link and the worker fetches the
+file from our own server instead.

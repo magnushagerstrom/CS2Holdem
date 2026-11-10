@@ -66,28 +66,26 @@ The full rules are in **[docs/CONCEPT.md](docs/CONCEPT.md)**.
 - Register with a SteamID64, a CS2 match-history auth code and one known share code
 - Credentials are verified against the Steam Web API before an account is created
 - Full match history is discovered by following Valve's chain of share codes
-- Share codes are decoded into match ID, reservation ID and TV port
-- Manual re-sync and a match list per user through a REST API
-- Consistent error responses following RFC 9457 (Problem Details), including per-field validation errors
-- Hand evaluation engine in pure Java that finds and compares the strongest hands (unit tested)
-- Event detection from parsed demo data: double kills to aces, special kills, stamps such as
+- New matches are found automatically by a scheduled sync that stays within Steam's API limits
+- Auth codes are encrypted at rest with AES-GCM
+- Demo links are fetched from the **CS2 Game Coordinator** by a bot Steam account, one match at a time
+- A demo worker in Go ([`worker/`](worker/README.md)) downloads each demo, reads every kill and
+  sends it to the server; interrupted downloads are resumed and checked for completeness
+- Event detection turns the kills into cards: double kills to aces, special kills and stamps such as
   *Smoked*, *Wallbang*, *One grenade* and *One shot*, with bots, warmup and exit frags filtered out
+- Hand evaluation engine in pure Java that finds and compares the strongest hands (unit tested)
+- Consistent error responses following RFC 9457 (Problem Details), including per-field validation errors
 
-**Written, waiting for the first full build**
+**Built, being tested**
 
 - Seasons, season hands (automatic best hand or a custom one), leaderboards and a permanent card collection
-- Sign in through Steam (OpenID 2.0), session cookies, players may only change their own data
-- Auth codes encrypted at rest with AES-GCM
-- Scheduled background sync that stays within a daily Steam API call budget
-- Demo upload and a job queue for demo workers (`FOR UPDATE SKIP LOCKED`)
-- A demo worker in Go ([`worker/`](worker/README.md)) built on demoinfocs-golang
+- Sign in through Steam (OpenID 2.0) with session cookies; players may only change their own data
 
 **Planned**
 
-- Demo download through the CS2 Game Coordinator
+- A web front end in the style of the classic Counter-Strike 1.6 menus
 - Watch every event: a "watch in CS2" button and a 2D replay in the browser
 - Rarity-based stamp points from real data
-- A web front end
 - Deployment on AWS
 
 ## Tech stack
@@ -101,6 +99,7 @@ The full rules are in **[docs/CONCEPT.md](docs/CONCEPT.md)**.
 | ORM           | Hibernate 7 (schema validation only)                    |
 | Local env     | Docker Compose, started automatically by Spring Boot    |
 | Security      | Spring Security, Steam OpenID 2.0, AES-GCM              |
+| Steam client  | JavaSteam, for the CS2 Game Coordinator                 |
 | Demo worker   | Go, demoinfocs-golang                                   |
 | Testing       | JUnit 5, AssertJ                                        |
 | Cloud (planned) | AWS: RDS, S3, ECS Fargate, Secrets Manager            |
@@ -121,7 +120,7 @@ A Swedish version is available in [docs/architecture-sv.png](docs/architecture-s
 
 | Part | What it does | Why | Status |
 |------|--------------|-----|--------|
-| **Hand engine** | Detects events in a round, finds a player's strongest hand and compares hands. | It *is* the game. Written in pure Java with no framework or database, so the rules can be unit tested in isolation and never depend on how data is stored. | Next up |
+| **Hand engine** | Detects events in a round, finds a player's strongest hand and compares hands. | It *is* the game. Written in pure Java with no framework or database, so the rules can be unit tested in isolation and never depend on how data is stored. | Done |
 
 **Rules** – what the engine knows. Full details in [docs/CONCEPT.md](docs/CONCEPT.md).
 
@@ -140,18 +139,18 @@ A Swedish version is available in [docs/architecture-sv.png](docs/architecture-s
 |------|--------------|-----|--------|
 | `steam` module + Steam Web API | Verifies users and follows the chain of share codes to discover new matches. | Valve's only official way to learn which matches a player has played. | Done |
 | `sync` module | Decides when each user is synced next and records new matches. | Spreads calls over time to stay within Steam's daily API limit. | Done |
-| CS2 Game Coordinator | Provides the download link for a match's demo file. | Kill-by-kill data only exists in the demo; the Web API has no such details. | Planned |
-| Job queue | Holds "download and parse this demo" jobs. | Parsing a demo takes seconds and lots of CPU; users should never wait for it. | Planned |
-| Demo worker | Downloads a demo, extracts every kill and detects events and stamps. | Turns hundreds of megabytes of raw data into a handful of cards. | Planned |
+| `locator` module + CS2 Game Coordinator | A bot Steam account starts CS2 and asks Valve's Game Coordinator for each match's demo link. | Kill-by-kill data only exists in the demo; the Web API has no such details, and the Game Coordinator is the only place that knows where the demo is. | Done |
+| Job queue | Holds "locate" and "parse" jobs in the database, handed out with `FOR UPDATE SKIP LOCKED`. | Parsing a demo takes seconds and lots of CPU; users should never wait for it, and several workers can share the queue. | Done |
+| Demo worker (Go) | Downloads a demo, reads every kill and sends the raw facts to the server, which turns them into cards. | Turns hundreds of megabytes of raw data into a handful of cards. | Done |
 
 **Output** – what players see.
 
 | Part | What it does | Why | Status |
 |------|--------------|-----|--------|
 | `api` module | REST endpoints with validated input and Problem Details errors. | One clear entry point for any client: web, mobile or tools. | Done |
-| Season hand | One hand per player and season, suggested automatically or built by hand, locked at season end. | The competitive core: the strongest hand wins the season. | Planned |
-| Card collection | Every card and season hand a player has ever collected. | Nothing is deleted, so a profile tells a player's whole story. | Planned |
-| Leaderboards | The strongest hands of the season and a hall of fame. | Gives players something to chase and show off. | Planned |
+| Season hand | One hand per player and season, suggested automatically or built by hand, locked at season end. | The competitive core: the strongest hand wins the season. | Built, being tested |
+| Card collection | Every card and season hand a player has ever collected. | Nothing is deleted, so a profile tells a player's whole story. | Built, being tested |
+| Leaderboards | The strongest hands of the season and a hall of fame. | Gives players something to chase and show off. | Built, being tested |
 | Replays | A "watch in CS2" button and a 2D replay in the browser. | Seeing a friend's crazy hand is half the fun. | Planned |
 
 **Platform** – what it all runs on.
@@ -191,6 +190,15 @@ A few choices worth calling out, and the reasoning behind them:
   `protected` so they cannot be misused.
 - **One score, many factors.** A hand's score combines hand type, damage, weapon difficulty
   and stamps, and the weights are balanced by how rare things are across all players.
+- **Demos are downloaded in full before they are read.** Reading while downloading looked
+  simpler, but when Valve's server closed a connection early the parser saw a demo that just
+  ended and reported half a match as a whole one. The worker now checks the size the server
+  promised, resumes broken downloads with HTTP Range requests, and turns parser crashes into
+  ordinary, retryable failures.
+- **The Game Coordinator bot is isolated.** It uses its own Steam account, never a player's,
+  logs in with a saved refresh token after the first Steam Guard code, and is switched off
+  unless `LOCATOR_ENABLED=true`. The CS2 client version it reports is a setting, so a Valve
+  update needs no rebuild.
 - **Raw numbers are stored, ratios are derived.** Total damage and headshot kills are
   persisted; ADR and HS% are calculated, so averages across many matches stay exact.
 
@@ -285,6 +293,17 @@ and [`http/game.http`](http/game.http).
    [Steam's CS2 match history page](https://help.steampowered.com/en/wizard/HelpWithGameIssue/?appid=730&issueid=128),
    and one **share code** from a recent match, found in-game under *Watch → Your Matches*.
 
+4. **Optional, to fetch demos automatically:** create a separate Steam account for the bot
+   (never your own), add CS2 to its library, and set `LOCATOR_ENABLED=true`,
+   `STEAM_BOT_USERNAME` and `STEAM_BOT_PASSWORD` in `.env`. On the first start, type the
+   Steam Guard code in the console; after that a saved token is used.
+5. Start the demo worker, which needs [Go](https://go.dev/dl/) and the same `WORKER_TOKEN` as the server:
+   ```bash
+   cd worker
+   go build -o worker.exe .
+   WORKER_TOKEN=<value from .env> ./worker.exe     # PowerShell: $env:WORKER_TOKEN="..."; .\worker.exe
+   ```
+
 Run the tests (Docker must be running for the integration test):
 
 ```bash
@@ -301,6 +320,7 @@ src/main/java/com/robrodesign/cs2holdem
 ├── config/      scheduling and the application clock
 ├── detection/   parsed demo data in, events and stamps out
 ├── hand/        the game rules: cards, hands, scoring (pure Java)
+├── locator/     bot account that asks the CS2 Game Coordinator for demo links
 ├── match/       matches, match history and per-player statistics
 ├── pipeline/    demo jobs, uploads, storage and import
 ├── player/      every Steam player seen in a match
@@ -327,8 +347,9 @@ src/main/resources
 - [x] Seasons, season hands and leaderboards
 - [x] Sign in with Steam
 - [x] Demo upload and job queue
-- [ ] Demo worker: first real run against CS2 demos
-- [ ] Fetch demo URLs from the CS2 Game Coordinator
+- [x] Demo worker: first real run against CS2 demos
+- [x] Fetch demo URLs from the CS2 Game Coordinator
+- [ ] Web front end in the style of the CS 1.6 menus
 - [ ] Event replays: watch in CS2 and 2D replay in the browser
 - [ ] CI pipeline with GitHub Actions
 - [ ] Deploy to AWS

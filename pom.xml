@@ -73,6 +73,32 @@
             <scope>runtime</scope>
             <optional>true</optional>
         </dependency>
+        <!-- Talks to Steam like a real Steam client does. We use it to ask CS2's Game
+             Coordinator for the download link of a match's demo (see the locator package). -->
+        <dependency>
+            <groupId>in.dragonbra</groupId>
+            <artifactId>javasteam</artifactId>
+            <version>1.8.0</version>
+        </dependency>
+        <!-- The Counter-Strike 2 Game Coordinator messages, shipped separately from JavaSteam. -->
+        <dependency>
+            <groupId>in.dragonbra</groupId>
+            <artifactId>javasteam-cs</artifactId>
+            <version>1.8.0</version>
+        </dependency>
+        <!-- JavaSteam only needs protobuf when running; we build messages ourselves, so we need
+             it while compiling too. Same version as JavaSteam uses, to avoid conflicts. -->
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>4.31.1</version>
+        </dependency>
+        <!-- JavaSteam needs Bouncy Castle for the encryption Steam uses at login. -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>1.82</version>
+        </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>

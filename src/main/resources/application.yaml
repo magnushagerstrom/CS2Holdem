@@ -59,6 +59,15 @@ cs2holdem:
     after-login-url: ${AFTER_LOGIN_URL:/api/me}
     # Inloggning utan Steam, för lokal utveckling. Får ALDRIG vara true i produktion.
     dev-login-enabled: ${DEV_LOGIN:false}
+  locator:
+    # Loggar in ett bot-konto på Steam och frågar CS2:s Game Coordinator efter demolänkar.
+    # Avstängt som standard: kräver ett separat Steam-konto (aldrig ditt eget).
+    enabled: ${LOCATOR_ENABLED:false}
+    username: ${STEAM_BOT_USERNAME:}
+    password: ${STEAM_BOT_PASSWORD:}
+    # Efter första inloggningen sparas en token här, så att lösenord och Steam Guard-kod bara behövs en gång.
+    # data/ ignoreras av git, så token hamnar aldrig på GitHub.
+    token-file: ${STEAM_BOT_TOKEN_FILE:./data/steam-bot/refresh-token}
   demos:
     # Uppladdade demos väntar här tills workern har läst dem. På AWS: byt till S3.
     directory: ${DEMO_DIRECTORY:./data/demos}

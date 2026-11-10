@@ -48,6 +48,9 @@ func ParseDemo(matchID int64, demo io.Reader) (result *ParsedMatch, err error) {
 	damage := map[pairKey]int{}         // health removed per killer and victim, per round
 	lastFireHurt := map[uint64]int{}    // steamID -> tick the player last took fire damage
 	lastHE := map[uint64]grenadeBlast{} // steamID -> the player's last HE grenade explosion
+	firstHurt := map[pairKey]int{}      // tick the killer first hurt the victim, per round
+	stats := newStatsCollector()
+	live := func() bool { return round > 0 && !p.GameState().IsWarmupPeriod() }
 
 	// The server sends its settings, including the map name, at the start of the demo
 	p.RegisterNetMessageHandler(func(m *msg.CSVCMsg_ServerInfo) {
@@ -58,6 +61,25 @@ func ParseDemo(matchID int64, demo io.Reader) (result *ParsedMatch, err error) {
 		gs := p.GameState()
 		if !gs.IsWarmupPeriod() {
 			round = gs.TotalRoundsPlayed() + 1
+		}
+	})
+
+	// A round counts as played for everyone on a team when the freeze time ends
+	p.RegisterEventHandler(func(events.RoundFreezetimeEnd) {
+		if live() {
+			stats.roundStarted(round, p.GameState().Participants().Playing())
+		}
+	})
+
+	p.RegisterEventHandler(func(e events.WeaponFire) {
+		if live() {
+			stats.shot(e.Shooter, e.Weapon)
+		}
+	})
+
+	p.RegisterEventHandler(func(e events.RoundMVPAnnouncement) {
+		if live() {
+			stats.mvp(e.Player)
 		}
 	})
 
@@ -75,7 +97,14 @@ func ParseDemo(matchID int64, demo io.Reader) (result *ParsedMatch, err error) {
 			lastFireHurt[e.Player.SteamID64] = p.GameState().IngameTick()
 		}
 		if e.Attacker != nil {
-			damage[pairKey{round, e.Attacker.SteamID64, e.Player.SteamID64}] += e.HealthDamageTaken
+			key := pairKey{round, e.Attacker.SteamID64, e.Player.SteamID64}
+			damage[key] += e.HealthDamageTaken
+			if _, seen := firstHurt[key]; !seen {
+				firstHurt[key] = p.GameState().IngameTick()
+			}
+			if live() {
+				stats.hurt(e.Attacker, e.Player, e.Weapon, e.HealthDamageTaken)
+			}
 		}
 	})
 
@@ -118,6 +147,10 @@ func ParseDemo(matchID int64, demo io.Reader) (result *ParsedMatch, err error) {
 			VictimBurning:   burning(e.Victim),
 			KillerLastAlive: aliveTeammates(gs.Team(e.Killer.Team), e.Killer) == 0,
 			KillerPlace:     e.Killer.LastPlaceName(),
+			FirstDamageTick: firstHurt[pairKey{round, e.Killer.SteamID64, e.Victim.SteamID64}],
+		}
+		if live() {
+			stats.assist(e.Assister, e.Victim, e.AssistedFlash)
 		}
 		if e.Weapon.Type == common.EqHE {
 			if blast, ok := lastHE[e.Killer.SteamID64]; ok && tick-blast.tick <= grenadeWindow {
@@ -136,6 +169,7 @@ func ParseDemo(matchID int64, demo io.Reader) (result *ParsedMatch, err error) {
 	result.DurationSeconds = int(p.CurrentTime().Seconds())
 	result.Team1Score = gs.TeamCounterTerrorists().Score()
 	result.Team2Score = gs.TeamTerrorists().Score()
+	result.Players = stats.finish(gs.Participants().All())
 	return result, nil
 }
 

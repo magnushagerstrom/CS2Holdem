@@ -14,6 +14,23 @@ type ParsedMatch struct {
 	Team2Score      int           `json:"team2Score"`
 	Rounds          []ParsedRound `json:"rounds"`
 	Kills           []ParsedKill  `json:"kills"`
+	Players         []ParsedPlayer `json:"players"`
+}
+
+// ParsedPlayer is one player's totals for the whole match (live rounds only, no warmup).
+// Team is the side the player ended the match on: 2 = T, 3 = CT.
+type ParsedPlayer struct {
+	SteamID       uint64 `json:"steamId"`
+	Name          string `json:"name"`
+	Team          int    `json:"team"`
+	RoundsPlayed  int    `json:"roundsPlayed"`
+	Damage        int    `json:"damage"`
+	UtilityDamage int    `json:"utilityDamage"`
+	Assists       int    `json:"assists"`
+	FlashAssists  int    `json:"flashAssists"`
+	MVPs          int    `json:"mvps"`
+	ShotsFired    int    `json:"shotsFired"`
+	ShotsHit      int    `json:"shotsHit"`
 }
 
 type ParsedRound struct {
@@ -44,4 +61,7 @@ type ParsedKill struct {
 	KillerLastAlive bool   `json:"killerLastAlive"`
 	GrenadeID       *int64 `json:"grenadeId"`
 	KillerPlace     string `json:"killerPlace"`
+	// FirstDamageTick is when the killer first hurt this victim in the round (0 = unknown).
+	// The server uses it for time to kill.
+	FirstDamageTick int `json:"firstDamageTick"`
 }

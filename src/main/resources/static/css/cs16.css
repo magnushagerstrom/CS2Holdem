@@ -1,7 +1,8 @@
 /*
- * CS2Holdem in the spirit of the Counter-Strike 1.6 menus (VGUI):
- * olive panels with a bevelled edge, small Tahoma text, a yellow highlight.
- * Everything is drawn with CSS; no images or fonts from the game are used.
+ * CS2Holdem in the spirit of the Counter-Strike 1.6 menus (VGUI), with about a quarter CS2:
+ * olive panels with a bevelled edge and small Tahoma text from 1.6; darker glassy windows,
+ * condensed display type and CS2's item rarity colours on the cards.
+ * Everything is drawn with CSS and inline SVG; no images or fonts from the games are used.
  */
 :root {
   --desktop: #1f2419;
@@ -264,13 +265,45 @@ button.card:hover { color: var(--highlight); }
   color: var(--highlight);
 }
 
-.stamps { display: flex; flex-wrap: wrap; gap: 3px; margin: 6px 0; }
+.stamps { display: flex; flex-wrap: wrap; gap: 7px 8px; margin: 8px 0 6px; }
 .stamp {
   padding: 0 4px;
   border: 1px solid var(--bevel-dark);
   background: var(--panel-dark);
   font-size: 10px;
 }
+
+/* ---------- Player profile ---------- */
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 6px;
+}
+.avatar-large {
+  width: 64px;
+  height: 64px;
+  border: 1px solid;
+  border-color: var(--bevel-dark) var(--bevel-light) var(--bevel-light) var(--bevel-dark);
+}
+.profile-name { font-size: 22px; font-weight: bold; }
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 4px 18px;
+}
+
+/* Label on the left, value on the right, as in the server info panel */
+table.facts th {
+  background: none;
+  border: 0;
+  color: var(--text-dim);
+}
+table.facts td { color: var(--text); }
+table.facts tr + tr th,
+table.facts tr + tr td { border-top: 1px solid var(--panel-dark); }
 
 /* ---------- The season hand ---------- */
 
@@ -312,3 +345,116 @@ button.card:hover { color: var(--highlight); }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* ==========================================================================
+   About a quarter CS2 on top of the 1.6 base
+   ========================================================================== */
+
+:root {
+  --desktop: #12150f;
+  --panel: rgba(66, 76, 59, 0.88);
+  --panel-dark: rgba(40, 47, 35, 0.92);
+  --field: rgba(30, 36, 27, 0.75);
+  --bevel-light: rgba(255, 255, 255, 0.14);
+  --bevel-dark: rgba(0, 0, 0, 0.55);
+  --display: "Barlow Semi Condensed", "Arial Narrow", Tahoma, sans-serif;
+
+  /* CS2's skin rarities, from common to rare */
+  --r-special: #5e98d9;   /* industrial grade */
+  --r-double: #4b69ff;    /* mil-spec */
+  --r-triple: #8847ff;    /* restricted */
+  --r-quad: #d32ce6;      /* classified */
+  --r-ace: #eb4b4b;       /* covert */
+  --r-gold: #e4ae39;      /* knives and gloves */
+}
+
+body {
+  background:
+    linear-gradient(115deg, rgba(196, 181, 80, 0.05) 0%, transparent 40%),
+    radial-gradient(ellipse at 70% 30%, #2a3122 0%, var(--desktop) 65%) fixed;
+}
+
+.logo { font-family: var(--display); font-weight: 700; font-size: 40px; letter-spacing: 0; }
+
+.menu li a,
+.menu li button {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 19px;
+  border-left: 3px solid transparent;
+  transition: padding-left 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.menu li a:hover,
+.menu li button:hover,
+.menu li a[aria-current="page"] {
+  padding-left: 10px;
+  border-left-color: var(--highlight);
+}
+
+.window {
+  backdrop-filter: blur(6px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  border-top: 2px solid var(--highlight);
+}
+.window-title {
+  padding: 8px 14px;
+  background: transparent;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 16px;
+}
+
+h2, .hand-type, .profile-name { font-family: var(--display); font-weight: 700; }
+h2 { font-size: 15px; }
+.hand-type { font-size: 32px; }
+table.facts td { font-family: var(--display); font-weight: 600; font-size: 15px; }
+
+/* Cards: a rarity strip along the bottom and a faint sheen, like an item in CS2 */
+.card {
+  background:
+    linear-gradient(170deg, rgba(255, 255, 255, 0.07) 0%, transparent 35%),
+    var(--panel);
+  border-bottom: 3px solid var(--rarity, var(--bevel-dark));
+}
+.card-face {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 42px;
+  letter-spacing: 0;
+  color: var(--rarity, var(--text));
+}
+.rarity { font-family: var(--display); color: var(--rarity); }
+
+[data-rarity="SPECIAL_KILL"] { --rarity: var(--r-special); }
+[data-rarity="DOUBLE_KILL"]  { --rarity: var(--r-double); }
+[data-rarity="TRIPLE_KILL"]  { --rarity: var(--r-triple); }
+[data-rarity="QUAD_KILL"]    { --rarity: var(--r-quad); }
+[data-rarity="ACE"]          { --rarity: var(--r-ace); }
+[data-rarity="GOLD"]         { --rarity: var(--r-gold); }
+
+/* Stamp icons: a small sunken badge each, with a count when earned more than once */
+.stamp-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  background: var(--field);
+  border: 1px solid;
+  border-color: var(--bevel-dark) var(--bevel-light) var(--bevel-light) var(--bevel-dark);
+  color: var(--text);
+}
+.stamp-count {
+  position: absolute;
+  right: -5px;
+  bottom: -6px;
+  min-width: 13px;
+  padding: 0 2px;
+  background: var(--highlight);
+  color: var(--desktop);
+  font: bold 9px/13px var(--font);
+  text-align: center;
+}
+.stamp-name { display: inline-flex; align-items: center; gap: 6px; }
+

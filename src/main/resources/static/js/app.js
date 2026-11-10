@@ -70,9 +70,67 @@ function avatar(url) {
   return url ? `<img class="avatar" src="${esc(url)}" alt="" width="20" height="20" loading="lazy">` : '';
 }
 
+/*
+ * The stamps, with an icon each. Icons are drawn on a 16 x 16 grid with lines in the current
+ * text colour, so they follow the theme. Keys are the names the API sends.
+ */
+const STAMPS = {
+  'Headshot': { points: 4, when: 'the kill was a headshot',
+    // A head and shoulders with the bullet's path straight through the head
+    icon: '<circle cx="8" cy="6.3" r="4"/><path d="M2.5 15c0-3 2.5-4.8 5.5-4.8s5.5 1.8 5.5 4.8M.8 5.6h14.4M13 3.9l2.2 1.7L13 7.3"/>' },
+  'Flashed': { points: 4, when: 'the enemy was blinded by a flashbang',
+    icon: '<circle cx="8" cy="8" r="2" fill="currentColor"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3M3 3l2 2M11 11l2 2M13 3l-2 2M5 11l-2 2"/>' },
+  'Smoked': { points: 8, when: 'the enemy was killed through or inside a smoke',
+    icon: '<path d="M4.5 12.5h7a3 3 0 0 0 .3-6 4 4 0 0 0-7.6-.8 2.9 2.9 0 0 0 .3 6.8z"/>' },
+  'Burning': { points: 8, when: 'the enemy was standing in fire',
+    icon: '<path d="M8 15c2.8 0 4.5-1.9 4.5-4.5 0-3-2.8-4-2.8-8-2 1-4 3.2-4 6-.9-.6-1.2-1.6-1.2-2.6C3 7.4 3.5 9 3.5 10.5 3.5 13.1 5.2 15 8 15z"/>' },
+  'Wallbang': { points: 8, when: 'the bullet went through a wall',
+    icon: '<path d="M6 2h4v12H6zM6 6h4M6 10h4M8 2v4M8 10v4"/><path d="M1 8h14M12 5.5 14.5 8 12 10.5"/>' },
+  'Blind': { points: 12, when: 'you were blinded by a flashbang',
+    icon: '<path d="M1.5 8S4 4 8 4s6.5 4 6.5 4S12 12 8 12 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="1.8"/><path d="M2.5 13.5 13.5 2.5"/>' },
+  'On fire': { points: 12, when: 'you were standing in fire',
+    icon: '<path fill="currentColor" d="M8 15c2.8 0 4.5-1.9 4.5-4.5 0-3-2.8-4-2.8-8-2 1-4 3.2-4 6-.9-.6-1.2-1.6-1.2-2.6C3 7.4 3.5 9 3.5 10.5 3.5 13.1 5.2 15 8 15z"/>' },
+  'Clutch': { points: 12, when: 'you were the last one alive on your team',
+    icon: '<circle cx="4" cy="8" r="2.6" fill="currentColor"/><circle cx="11" cy="3.5" r="1.7"/><circle cx="13.5" cy="8" r="1.7"/><circle cx="11" cy="12.5" r="1.7"/>' },
+  'Lightning': { points: 12, when: 'all kills of the card came within a few seconds',
+    icon: '<path d="M9.5 1 3.5 9h4l-1 6 6-8h-4z"/>' },
+  'No-scope': { points: 20, when: 'a kill without zooming in, with a weapon that has a scope',
+    icon: '<circle cx="8" cy="8" r="6"/><path d="M8 4v8M4 8h8M2.5 13.5 13.5 2.5"/>' },
+  'One grenade': { points: 20, when: 'all kills of the card came from one HE grenade',
+    icon: '<circle cx="7.5" cy="10" r="4.5"/><path d="M5.5 5.5V4h4v1.5"/><circle cx="12" cy="3" r="1.5"/>' },
+  'One shot': { points: 20, when: 'all kills of the card came from a single bullet',
+    icon: '<circle cx="6" cy="8" r="2.4"/><circle cx="11" cy="8" r="2.4"/><path d="M1 8h14"/>' },
+};
+
+function stampIcon(name) {
+  const stamp = STAMPS[name];
+  if (!stamp) return '';
+  return `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor"
+    stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${stamp.icon}</svg>`;
+}
+
+/**
+ * The stamps as icons. A stamp earned several times (three headshots) shows once with a count.
+ * The name and meaning are in the tooltip and for screen readers; unknown stamps fall back to text.
+ */
 function stamps(list) {
   if (!list || list.length === 0) return '';
-  return `<div class="stamps">${list.map(s => `<span class="stamp">${esc(s)}</span>`).join('')}</div>`;
+  const counts = new Map();
+  list.forEach(name => counts.set(name, (counts.get(name) || 0) + 1));
+  return `<div class="stamps">${[...counts].map(([name, count]) => {
+    const stamp = STAMPS[name];
+    if (!stamp) return `<span class="stamp">${esc(name)}</span>`;
+    const label = `${name}: ${stamp.when}, +${stamp.points * count} points`;
+    return `<span class="stamp-icon" title="${esc(label)}" role="img" aria-label="${esc(label)}">${stampIcon(name)}${
+      count > 1 ? `<span class="stamp-count">${count}</span>` : ''}</span>`;
+  }).join('')}</div>`;
+}
+
+/** The card's rarity, in CS2's skin colours. A perfect ace (royal flush) is gold. */
+function rarity(card) {
+  if (card.type !== 'ACE') return card.type;
+  const perfect = card.totalDamage >= 500 || card.kills.every(k => k.stamps.includes('Headshot'));
+  return perfect ? 'GOLD' : 'ACE';
 }
 
 /** One card. As a button when it can be picked for a hand. */
@@ -80,11 +138,11 @@ function cardHtml(card, pickable = false) {
   const tag = pickable ? 'button' : 'div';
   const pressed = pickable ? ` type="button" aria-pressed="${state.selected.includes(card.id)}" data-card="${esc(card.id)}"` : '';
   const killStamps = card.kills.flatMap(k => k.stamps);
-  return `<${tag} class="card"${pressed}>
+  return `<${tag} class="card" data-rarity="${rarity(card)}"${pressed}>
     <span class="card-points">${card.points}</span>
     <span class="card-face">${FACES[card.type] || '?'}</span>
     <span class="card-name">${esc(card.typeName)}</span>
-    ${stamps([...new Set([...card.stamps, ...killStamps])])}
+    ${stamps([...card.stamps, ...killStamps])}
     <span class="card-meta">Round ${card.round}<br>${card.totalDamage} damage</span>
   </${tag}>`;
 }
@@ -104,7 +162,7 @@ function killHtml(kill) {
 
 function drawMenu(route) {
   const items = state.me
-    ? [['#/hand', 'My hand'], ['#/collection', 'Collection'], ['#/matches', 'Matches'],
+    ? [['#/hand', 'My hand'], ['#/player/' + state.me.steamId64, 'My profile'], ['#/collection', 'Collection'], ['#/matches', 'Matches'],
        ['#/leaderboard', 'Leaderboard'], ['#/how', 'How it works']]
     : [['/auth/steam', 'Sign in through Steam'], ['#/how', 'How it works'], ['#/leaderboard', 'Leaderboard']];
 
@@ -163,14 +221,16 @@ function howItWorks() {
     <p>A card is one round where you did something worth showing off. Ordinary single kills do
       not make cards on their own.</p>
     ${table(['Card', 'In one round you got', 'Kills'], [
-      ['<strong>1K</strong> Special kill', 'a kill with a knife or a Zeus, or a no-scope with any weapon that has a scope', '1'],
-      ['<strong>2K</strong> Double kill', 'two kills', '2'],
-      ['<strong>3K</strong> Triple kill', 'three kills', '3'],
-      ['<strong>4K</strong> Quad kill', 'four kills', '4'],
-      ['<strong>ACE</strong> Ace', 'the whole enemy team', '5'],
+      ['<strong class="rarity" data-rarity="SPECIAL_KILL">1K</strong> Special kill', 'a kill with a knife or a Zeus, or a no-scope with any weapon that has a scope', '1'],
+      ['<strong class="rarity" data-rarity="DOUBLE_KILL">2K</strong> Double kill', 'two kills', '2'],
+      ['<strong class="rarity" data-rarity="TRIPLE_KILL">3K</strong> Triple kill', 'three kills', '3'],
+      ['<strong class="rarity" data-rarity="QUAD_KILL">4K</strong> Quad kill', 'four kills', '4'],
+      ['<strong class="rarity" data-rarity="ACE">ACE</strong> Ace', 'the whole enemy team', '5'],
+      ['<strong class="rarity" data-rarity="GOLD">ACE</strong> Perfect ace', 'the whole enemy team with five headshots, or all 500 damage yourself', '5'],
     ])}
     <p class="dim">The weapons with a scope are the AWP, SSG 08, SCAR-20, G3SG1, AUG and SG 553.
-      A round gives at most one card. Five kills is an ace, not a triple kill and a double kill.</p>
+      A round gives at most one card. Five kills is an ace, not a triple kill and a double kill.
+      The colour shows how rare a card is, the same way skin rarity does in CS2.</p>
 
     <h2>Which kills count</h2>
     <p>Only matches on Valve's matchmaking count: Premier, Competitive and Wingman. Within them,
@@ -203,20 +263,8 @@ function howItWorks() {
     <h2>Stamps</h2>
     <p>Stamps tell how a kill happened, and each one adds points. They never change the hand type,
       but they decide which of two full houses is stronger.</p>
-    ${table(['Stamp', 'Given when', 'Points'], [
-      ['Headshot', 'the kill was a headshot', '4'],
-      ['Flashed', 'the enemy was blinded by a flashbang', '4'],
-      ['Smoked', 'the enemy was killed through or inside a smoke', '8'],
-      ['Burning', 'the enemy was standing in fire', '8'],
-      ['Wallbang', 'the bullet went through a wall', '8'],
-      ['Blind', 'you were blinded by a flashbang', '12'],
-      ['On fire', 'you were standing in fire', '12'],
-      ['Clutch', 'you were the last one alive on your team', '12'],
-      ['Lightning', 'all kills of the card came within a few seconds', '12'],
-      ['No-scope', 'a kill without zooming in, with a weapon that has a scope', '20'],
-      ['One grenade', 'all kills of the card came from one HE grenade', '20'],
-      ['One shot', 'all kills of the card came from a single bullet', '20'],
-    ])}
+    ${table(['Stamp', 'Given when', 'Points'], Object.entries(STAMPS).map(([name, stamp]) =>
+      [`<span class="stamp-name">${stampIcon(name)}${esc(name)}</span>`, stamp.when, String(stamp.points)]))}
     <p class="dim">Clutch, Lightning, One grenade and One shot belong to the whole card. All the
       others belong to single kills, so a card can earn them several times: a triple kill with three
       headshots gets the headshot points three times.</p>
@@ -413,6 +461,112 @@ async function build() {
   }
 }
 
+/** A number for display: '-' when it could not be calculated (no rounds, no shots ...). */
+function num(value, decimals = 0, suffix = '') {
+  if (value === null || value === undefined) return '-';
+  return Number(value).toFixed(decimals) + suffix;
+}
+
+/** Label and value rows, like the server info panel in the old server browser. */
+function facts(rows) {
+  return `<table class="facts"><tbody>${rows.map(([label, value]) =>
+    `<tr><th scope="row">${label}</th><td class="num">${value}</td></tr>`).join('')}</tbody></table>`;
+}
+
+async function profile(steamId64) {
+  drawWindow('Player', '<p class="dim">Loading the profile...</p>');
+  try {
+    const p = await api(`/api/players/${encodeURIComponent(steamId64)}/stats`);
+    const s = p.stats;
+    const name = p.displayName || p.steamId64;
+
+    const body = s.matches === 0
+      ? `<p>No matches read this season yet. Statistics appear after the first match with a demo.</p>`
+      : `<div class="profile-grid">
+          <section>
+            <h2>Matches</h2>
+            ${facts([
+              ['Played', s.matches],
+              ['Won, lost, drawn', `${s.wins}, ${s.losses}, ${s.draws}`],
+              ['Win rate', num(s.winRate, 0, ' %')],
+              ['Rounds', s.roundsPlayed],
+              ['MVPs', s.mvps],
+            ])}
+          </section>
+          <section>
+            <h2>Aim</h2>
+            ${facts([
+              ['Kills, deaths', `${s.kills}, ${s.deaths}`],
+              ['K/D', num(s.killDeathRatio, 2)],
+              ['Headshots', num(s.headshotPercent, 0, ' %')],
+              ['Accuracy', num(s.accuracyPercent, 0, ' %')],
+              ['Time to kill', num(s.timeToKillSeconds, 2, ' s')],
+            ])}
+          </section>
+          <section>
+            <h2>Impact</h2>
+            ${facts([
+              ['Damage per round', num(s.averageDamagePerRound, 1)],
+              ['Utility damage per round', num(s.utilityDamagePerRound, 1)],
+              ['Opening kills, deaths', `${s.openingKills}, ${s.openingDeaths}`],
+              ['Opening duels won', num(s.openingSuccessPercent, 0, ' %')],
+              ['Assists, flash assists', `${s.assists}, ${s.flashAssists}`],
+            ])}
+          </section>
+          <section>
+            <h2>Cards</h2>
+            ${p.cards.length === 0 ? '<p class="dim">No cards yet.</p>'
+              : facts([...p.cards.map(c => [esc(c.name), c.count]), ['Clutches', p.clutches]])}
+          </section>
+          <section>
+            <h2>Kills by weapon type</h2>
+            ${p.weapons.length === 0 ? '<p class="dim">No kills yet.</p>'
+              : facts(p.weapons.map(w => [esc(w.name), w.count]))}
+          </section>
+          <section id="lifetime">
+            <h2>All time, from Steam</h2>
+            <p class="dim">Loading...</p>
+          </section>
+        </div>`;
+
+    drawWindow(`${name}, ${p.season.name}`, `
+      <div class="profile-head">
+        ${p.avatarUrl ? `<img class="avatar-large" src="${esc(p.avatarUrl)}" alt="" width="64" height="64">` : ''}
+        <div>
+          <div class="profile-name">${esc(name)}</div>
+          <a class="dim" href="https://steamcommunity.com/profiles/${esc(p.steamId64)}" target="_blank" rel="noopener">Steam profile</a>
+        </div>
+      </div>
+      ${body}
+      <p class="dim">Premier, Competitive and Wingman matches this season. Exit frags count here, as on the scoreboard; team kills and bots do not.</p>`);
+
+    if (s.matches > 0) lifetime(steamId64);
+  } catch (e) {
+    drawError('Player', e);
+  }
+}
+
+/** Steam's own lifetime numbers, loaded after the page so a slow Steam never holds it up. */
+async function lifetime(steamId64) {
+  const box = document.getElementById('lifetime');
+  try {
+    const l = await api(`/api/players/${encodeURIComponent(steamId64)}/lifetime`);
+    if (!box.isConnected) return; // the player opened another window meanwhile
+    box.innerHTML = '<h2>All time, from Steam</h2>' + (l.available
+      ? facts([
+          ['Kills, deaths', `${l.kills ?? '-'}, ${l.deaths ?? '-'}`],
+          ['K/D', num(l.killDeathRatio, 2)],
+          ['Headshots', num(l.headshotPercent, 0, ' %')],
+          ['Accuracy', num(l.accuracyPercent, 0, ' %')],
+          ['Matches won', l.matchesWon ?? '-'],
+          ['Hours played', l.hoursPlayed ?? '-'],
+        ]) + '<p class="hint">Every game mode since the account was created, including CS:GO.</p>'
+      : '<p class="dim">Not shared. Steam only shows these when the profile\'s game details are public.</p>');
+  } catch (e) {
+    if (box.isConnected) box.innerHTML = '<h2>All time, from Steam</h2><p class="dim">Steam did not answer.</p>';
+  }
+}
+
 async function leaderboard() {
   drawWindow('Leaderboard', '<p class="dim">Loading the leaderboard...</p>');
   try {
@@ -422,7 +576,7 @@ async function leaderboard() {
     ]);
     const rows = entries.map(e => `<tr>
         <td class="num">${e.rank}</td>
-        <td class="player">${avatar(e.avatarUrl)}${esc(e.displayName || e.steamId64)}</td>
+        <td class="player">${avatar(e.avatarUrl)}<a href="#/player/${esc(e.steamId64)}">${esc(e.displayName || e.steamId64)}</a></td>
         <td>${esc(e.typeName)}</td>
         <td class="num">${e.score}</td>
       </tr>`).join('');
@@ -463,6 +617,8 @@ function showRoute() {
   }
 
   drawMenu(route);
+  const player = route.match(/^\/player\/(\d{17})$/);
+  if (player) return profile(player[1]);
   (ROUTES[route] || howItWorks)();
 }
 

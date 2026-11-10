@@ -50,14 +50,22 @@ func main() {
 	log.Print("worker stopped")
 }
 
+// idle is true while the queue is empty, so "all done" is logged only once.
+var idle bool
+
 // runOnce takes at most one parse job. It returns true if there was a job.
 func runOnce(ctx context.Context, api *API) (bool, error) {
-	// Locating demos through CS2's Game Coordinator needs a logged-in Steam account and is
-	// not built yet (see README). Until then, demos arrive by players uploading them.
+	// Demo links come from the Java server's locator (CS2 Game Coordinator) or from uploads.
 	jobs, err := api.ParseJobs(ctx, 1)
 	if err != nil || len(jobs) == 0 {
+		// Say it once when the queue runs empty, not every ten seconds
+		if err == nil && !idle {
+			log.Print("all done, waiting for new matches")
+			idle = true
+		}
 		return false, err
 	}
+	idle = false
 	job := jobs[0]
 	log.Printf("parsing match %s", job.MatchID)
 

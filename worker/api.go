@@ -41,9 +41,15 @@ func (a *API) ParseJobs(ctx context.Context, limit int) ([]ParseJob, error) {
 }
 
 func (a *API) ReportParsed(ctx context.Context, matchID string, parsed *ParsedMatch) (string, error) {
-	var result map[string]any
+	// Only the counts. The match id is in the log line already, and as a JSON number it would
+	// be read into a float64 and printed rounded (19 digits do not fit in a float64).
+	var result struct {
+		Cards   int `json:"cards"`
+		Kills   int `json:"kills"`
+		Players int `json:"players"`
+	}
 	err := a.call(ctx, http.MethodPost, "/internal/matches/"+matchID+"/parsed", parsed, &result)
-	return fmt.Sprint(result), err
+	return fmt.Sprintf("%d kills, %d players, %d cards", result.Kills, result.Players, result.Cards), err
 }
 
 func (a *API) ReportFailure(ctx context.Context, matchID, message string, expired bool) error {

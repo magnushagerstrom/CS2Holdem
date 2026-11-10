@@ -31,11 +31,19 @@ type grenadeBlast struct {
 
 // ParseDemo reads a whole demo and collects what the Java EventDetector needs.
 // It reports raw facts only; deciding what counts (bots, warmup, exit frags ...) is the server's job.
-func ParseDemo(matchID int64, demo io.Reader) (*ParsedMatch, error) {
+func ParseDemo(matchID int64, demo io.Reader) (result *ParsedMatch, err error) {
+	// demoinfocs panics instead of returning an error on some broken input. Without this,
+	// one bad demo would kill the whole worker, and every match after it would wait.
+	defer func() {
+		if r := recover(); r != nil {
+			result, err = nil, fmt.Errorf("the demo parser crashed: %v", r)
+		}
+	}()
+
 	p := dem.NewParser(demo)
 	defer p.Close()
 
-	result := &ParsedMatch{MatchID: matchID}
+	result = &ParsedMatch{MatchID: matchID}
 	round := 0
 	damage := map[pairKey]int{}         // health removed per killer and victim, per round
 	lastFireHurt := map[uint64]int{}    // steamID -> tick the player last took fire damage

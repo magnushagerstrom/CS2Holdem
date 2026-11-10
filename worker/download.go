@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	// Valve's replay servers sometimes drop a connection half way. We continue where we were.
-	maxDownloadAttempts = 6
+	// Valve's replay servers drop connections often, sometimes every minute. We continue where we
+	// were, and only give up after this many attempts in a row that brought no new bytes at all.
+	maxFailuresWithoutProgress = 6
 	retryPause          = 5 * time.Second
 )
 
@@ -40,7 +41,7 @@ func downloadDemo(ctx context.Context, api *API, job ParseJob) (io.ReadCloser, e
 		}
 		return decompress(body)
 	}
-	file, err := downloadToFile(ctx, job.DemoURL)
+	file, err := downloadToFile(ctx, job.DemoURL, job.MatchID)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +59,7 @@ func (t tempFile) Close() error {
 
 // downloadToFile fetches url into a temporary file. If the connection breaks, it asks the server
 // for only the missing part (an HTTP Range request) instead of starting over.
-func downloadToFile(ctx context.Context, url string) (io.ReadCloser, error) {
+func downloadToFile(ctx context.Context, url, matchID string) (io.ReadCloser, error) {
 	f, err := os.CreateTemp("", "cs2holdem-demo-*.dem.bz2")
 	if err != nil {
 		return nil, err
@@ -67,18 +68,24 @@ func downloadToFile(ctx context.Context, url string) (io.ReadCloser, error) {
 	started := time.Now()
 	var have, total int64 = 0, -1
 
-	for attempt := 1; ; attempt++ {
+	failures := 0
+	for {
+		before := have
 		have, total, err = downloadPart(ctx, url, file.File, have, total)
 		if err == nil {
 			break
 		}
+		if have > before {
+			failures = 0 // it broke, but we got further: not a failure that counts
+		}
+		failures++
 		var expired expiredError
-		if errors.As(err, &expired) || ctx.Err() != nil || attempt == maxDownloadAttempts {
+		if errors.As(err, &expired) || ctx.Err() != nil || failures == maxFailuresWithoutProgress {
 			file.Close()
 			return nil, err
 		}
-		log.Printf("download interrupted after %s (%v), continuing in %s",
-			megabytes(have), err, retryPause)
+		log.Printf("match %s: download interrupted after %s (%v), continuing in %s",
+			matchID, megabytes(have), err, retryPause)
 		select {
 		case <-ctx.Done():
 			file.Close()
@@ -88,8 +95,8 @@ func downloadToFile(ctx context.Context, url string) (io.ReadCloser, error) {
 	}
 
 	took := time.Since(started)
-	log.Printf("downloaded %s in %s (%.1f MB/s)",
-		megabytes(have), took.Round(time.Second), float64(have)/1e6/took.Seconds())
+	log.Printf("match %s: downloaded %s in %s (%.1f MB/s)",
+		matchID, megabytes(have), took.Round(time.Second), float64(have)/1e6/took.Seconds())
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		file.Close()
 		return nil, err

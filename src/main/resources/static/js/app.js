@@ -282,6 +282,23 @@ function howItWorks() {
     ${state.me ? '' : '<div class="buttons"><a class="button" href="/auth/steam">Sign in through Steam</a></div>'}`);
 }
 
+/** Where Steam's sign-in ends up when it did not go through (see AuthController). */
+function signInCancelled() {
+  drawWindow('Sign-in cancelled', `
+    <p>You left Steam's sign-in page before signing in, so nothing has changed.</p>
+    <div class="buttons"><a class="button" href="/auth/steam">Sign in through Steam</a>
+      <a class="button" href="#/how">How it works</a></div>`);
+}
+
+function signInFailed() {
+  drawWindow('Sign-in did not go through', `
+    <p>Steam could not confirm the sign-in. This usually means Steam is busy or down for a moment.
+      Wait a minute and try again.</p>
+    <p class="dim">If it keeps happening, check that Steam's own site works:
+      <a href="https://steamcommunity.com" target="_blank" rel="noopener">steamcommunity.com</a>.</p>
+    <div class="buttons"><a class="button" href="/auth/steam">Try again</a></div>`);
+}
+
 function register() {
   drawWindow('Connect your match history', `
     <p>CS2Holdem reads your matches from Steam. Steam needs two codes to share them with us.
@@ -601,6 +618,8 @@ const ROUTES = {
   '/collection': collection,
   '/hand': hand,
   '/build': build,
+  '/signin-cancelled': signInCancelled,
+  '/signin-failed': signInFailed,
 };
 const NEEDS_LOGIN = ['/register', '/matches', '/collection', '/hand', '/build'];
 

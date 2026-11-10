@@ -20,6 +20,9 @@ public class AuthController {
 
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
     private static final String CALLBACK_PATH = "/auth/steam/callback";
+    // Windows on the web page (see js/app.js) that explain a sign-in that did not go through
+    static final String SIGN_IN_CANCELLED = "/#/signin-cancelled";
+    static final String SIGN_IN_FAILED = "/#/signin-failed";
 
     private final SteamOpenIdClient openIdClient;
     private final LoginService loginService;
@@ -42,14 +45,26 @@ public class AuthController {
     @GetMapping("/steam/callback")
     public ResponseEntity<Void> callback(@RequestParam Map<String, String> params,
                                          HttpServletRequest request, HttpServletResponse response) {
+        // The player pressed "Cancel" on Steam's page. Not an error, just back to the start.
+        if ("cancel".equals(params.get("openid.mode"))) {
+            return redirect(SIGN_IN_CANCELLED);
+        }
         return openIdClient.verify(params, callbackUrl())
                 .map(steamId64 -> {
                     loginService.logIn(steamId64, request, response);
                     log.info("Player {} logged in through Steam", steamId64);
-                    return ResponseEntity.status(HttpStatus.FOUND)
-                            .location(URI.create(properties.afterLoginUrl())).<Void>build();
+                    return redirect(properties.afterLoginUrl());
                 })
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+                .orElseGet(() -> {
+                    // Steam did not confirm the login: Steam was down, or the address was tampered with.
+                    // The browser goes back to our page, which explains it, instead of a bare 401.
+                    log.warn("A Steam login could not be verified");
+                    return redirect(SIGN_IN_FAILED);
+                });
+    }
+
+    private static ResponseEntity<Void> redirect(String location) {
+        return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(location)).build();
     }
 
     // GET /auth/dev-login?steamId64=... : bara för lokal utveckling, avstängd som standard

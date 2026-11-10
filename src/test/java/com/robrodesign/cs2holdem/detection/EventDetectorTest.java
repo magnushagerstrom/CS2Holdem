@@ -152,10 +152,33 @@ class EventDetectorTest {
     }
 
     @Test
-    void noScopeOnlyCountsForSniperRifles() {
+    void noScopeOnlyCountsForWeaponsWithAScope() {
         DetectionResult result = EventDetector.detect(match(kill().round(1).tick(tickIn(1, 0)).noScope()), PLAYER);
 
         assertThat(result.roundKills().get(0).kill().stamps()).isEmpty();
+    }
+
+    @Test
+    void noScopeWithAnAugCounts() {
+        DetectionResult result = EventDetector.detect(match(
+                kill().round(1).tick(tickIn(1, 0)).weapon("weapon_aug").noScope()), PLAYER);
+
+        assertThat(result.roundKills().get(0).kill().stamps()).contains(Stamp.NO_SCOPE);
+    }
+
+    @Test
+    void singleNoScopeKillIsASpecialKill() {
+        List<Event> events = events(match(kill().round(4).tick(tickIn(4, 0)).weapon("ssg08").noScope()));
+
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).type()).isEqualTo(EventType.SPECIAL_KILL);
+    }
+
+    @Test
+    void singleScopedSniperKillIsNotACard() {
+        List<Event> events = events(match(kill().round(4).tick(tickIn(4, 0)).weapon("awp")));
+
+        assertThat(events).isEmpty();
     }
 
     // ---------- event stamps

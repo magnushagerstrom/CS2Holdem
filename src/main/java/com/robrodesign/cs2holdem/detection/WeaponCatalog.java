@@ -5,6 +5,7 @@ import com.robrodesign.cs2holdem.hand.WeaponGroup;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Knows every weapon's group and difficulty.
@@ -96,6 +97,14 @@ public final class WeaponCatalog {
     }
 
     public static final String HE_GRENADE = "hegrenade";
+
+    /** Weapons with a scope: a kill with one of them without zooming in is a no-scope. */
+    private static final Set<String> SCOPED = Set.of("awp", "ssg08", "scar20", "g3sg1", "aug", "sg556");
+
+    /** @param canonicalName a name from {@link WeaponInfo#name()}, e.g. "awp" */
+    public static boolean hasScope(String canonicalName) {
+        return SCOPED.contains(canonicalName);
+    }
 
     private WeaponCatalog() {
     }

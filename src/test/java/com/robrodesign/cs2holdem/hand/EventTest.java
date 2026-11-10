@@ -64,7 +64,16 @@ class EventTest {
     void rejectsRifleKillAsSpecialKill() {
         assertThatThrownBy(() -> new Event(EventType.SPECIAL_KILL, MATCH_ID, 3, rifleKills(1, 100)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("knife or Zeus");
+                .hasMessageContaining("special kill");
+    }
+
+    @Test
+    void noScopeKillIsASpecialKill() {
+        Kill noScope = new Kill(WeaponGroup.SNIPER_RIFLE, 140, 100, "Mid", Set.of(Stamp.NO_SCOPE));
+
+        Event event = new Event(EventType.SPECIAL_KILL, MATCH_ID, 3, List.of(noScope));
+
+        assertThat(event.type()).isEqualTo(EventType.SPECIAL_KILL);
     }
 
     // ---------- stamps and points

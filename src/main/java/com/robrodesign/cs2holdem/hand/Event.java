@@ -25,8 +25,8 @@ public record Event(
                     type.displayName() + " needs " + type.killCount() + " kills, got "
                             + (kills == null ? "none" : kills.size()));
         }
-        if (type == EventType.SPECIAL_KILL && kills.get(0).weaponGroup() != WeaponGroup.MELEE) {
-            throw new IllegalArgumentException("A special kill must be a knife or Zeus kill");
+        if (type == EventType.SPECIAL_KILL && !isSpecialKill(kills.get(0))) {
+            throw new IllegalArgumentException("A special kill must be a knife, Zeus or no-scope kill");
         }
         if (stamps == null) {
             throw new IllegalArgumentException("Stamps cannot be null, use an empty set");
@@ -88,4 +88,12 @@ public record Event(
         }
         return true;
     }
-}
+
+    /**
+     * A single kill that is a card on its own: a knife or Zeus kill, or a no-scope with a weapon
+     * that has a scope (the no-scope stamp is only given for those, see EventDetector).
+     */
+    public static boolean isSpecialKill(Kill kill) {
+        return kill.weaponGroup() == WeaponGroup.MELEE || kill.stamps().contains(Stamp.NO_SCOPE);
+    }
+}

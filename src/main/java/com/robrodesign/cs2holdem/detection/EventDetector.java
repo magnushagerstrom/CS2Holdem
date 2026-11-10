@@ -102,7 +102,7 @@ public final class EventDetector {
         int damage = Math.max(0, Math.min(Kill.MAX_DAMAGE, parsed.damage()));
         String area = parsed.killerPlace() == null || parsed.killerPlace().isBlank()
                 ? Kill.UNKNOWN_AREA : parsed.killerPlace();
-        Kill kill = new Kill(info.group(), info.difficulty(), damage, area, killStamps(parsed, info.group()));
+        Kill kill = new Kill(info.group(), info.difficulty(), damage, area, killStamps(parsed, info));
         return Optional.of(new CountedKill(parsed, info.name(), kill));
     }
 
@@ -119,7 +119,7 @@ public final class EventDetector {
         return kill.tick() <= decidedTick; // later kills are exit frags
     }
 
-    static Set<Stamp> killStamps(ParsedKill kill, WeaponGroup group) {
+    static Set<Stamp> killStamps(ParsedKill kill, WeaponCatalog.WeaponInfo weapon) {
         Set<Stamp> stamps = EnumSet.noneOf(Stamp.class);
         if (kill.victimBlind()) {
             stamps.add(Stamp.FLASHED);
@@ -142,7 +142,8 @@ public final class EventDetector {
         if (kill.wallbang()) {
             stamps.add(Stamp.WALLBANG);
         }
-        if (kill.noScope() && group == WeaponGroup.SNIPER_RIFLE) {
+        // The demo flags every unzoomed kill; it only means something for a weapon that has a scope
+        if (kill.noScope() && WeaponCatalog.hasScope(weapon.name())) {
             stamps.add(Stamp.NO_SCOPE);
         }
         return stamps;
@@ -159,7 +160,7 @@ public final class EventDetector {
             case 4 -> EventType.QUAD_KILL;
             case 3 -> EventType.TRIPLE_KILL;
             case 2 -> EventType.DOUBLE_KILL;
-            case 1 -> used.get(0).kill().weaponGroup() == WeaponGroup.MELEE ? EventType.SPECIAL_KILL : null;
+            case 1 -> Event.isSpecialKill(used.get(0).kill()) ? EventType.SPECIAL_KILL : null;
             default -> null;
         };
         if (type == null) {

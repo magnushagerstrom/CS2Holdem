@@ -27,7 +27,7 @@ CS2Holdem only cares about moments worth showing off.
 | Triple kill  | 3 kills in the round                           | 3     |
 | Quad kill    | 4 kills in the round                           | 4     |
 | Ace          | 5 kills in the round (the whole enemy team)    | 5     |
-| Special kill | A single kill that is remarkable in itself, e.g. a knife or Zeus kill | 1 |
+| Special kill | A single kill that is remarkable in itself: a knife or Zeus kill, or a no-scope with a weapon that has a scope | 1 |
 
 A round produces **at most one event per player**. A 5-kill round is an Ace; it cannot be
 split into a triple kill and a double kill.
@@ -62,7 +62,7 @@ Every poker hand has a CS2Holdem equivalent:
 
 | #  | Hand (weakest → strongest) | Built from | Example |
 |----|-----------------|----------------------------------------------------------|--------------------------------------|
-| 1  | High card       | one special kill                                         | a knife kill                         |
+| 1  | High card       | one special kill                                         | a knife kill or a no-scope           |
 | 2  | Pair            | one double kill                                          | 2k                                   |
 | 3  | Two pair        | two double kills                                         | 2k + 2k                              |
 | 4  | Three of a kind | one triple kill                                          | 3k                                   |
@@ -89,7 +89,7 @@ Damage is counted as health actually removed, so it is capped at 100 per enemy p
 ### Rules for building hands
 
 - A hand contains **at most five kills**. Straight, flush and straight flush need **exactly five**.
-- **Special kills** (single kills such as a knife or Zeus kill) are real cards. They form a high
+- **Special kills** (single knife, Zeus or no-scope kills) are real cards. They form a high
   card on their own and can fill a hand up to five kills.
 - **Cards are classified as their highest hand type.** If the same cards qualify for several
   hand types, the engine uses the highest one, since it gives the most base points. A 3k + 2k where all five kills are headshots is both a
@@ -183,7 +183,7 @@ single kill can carry several. A full house where two kills went through a smoke
 |-----------------|---------------------------------------------------------|
 | **Headshot**    | the kill was a headshot                                 |
 | **Wallbang**    | the bullet went through a wall or other object          |
-| **No-scope**    | a sniper kill without using the scope                   |
+| **No-scope**    | a kill without zooming in, with a weapon that has a scope (AWP, SSG 08, SCAR-20, G3SG1, AUG, SG 553). A no-scope is also a special kill card on its own |
 
 ### Event stamps
 

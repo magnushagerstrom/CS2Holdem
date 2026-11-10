@@ -31,6 +31,13 @@ public class Player {
     @Column(name = "display_name", length = 64)
     private String displayName;
 
+    @Column(name = "avatar_url", length = 255)
+    private String avatarUrl;
+
+    /** When we last asked Steam for the name and avatar. null = never. */
+    @Column(name = "profile_checked_at")
+    private Instant profileCheckedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -42,5 +49,19 @@ public class Player {
     public Player(Long steamId64, String displayName) {
         this.steamId64 = steamId64;
         this.displayName = displayName;
+    }
+
+    /**
+     * Stores what Steam says about the player now. Steam names can be up to 32 characters, but
+     * we cut at the column size anyway, so an unexpected long name can never break the save.
+     */
+    public void updateProfile(String name, String avatarUrl, Instant checkedAt) {
+        if (name != null && !name.isBlank()) {
+            this.displayName = name.length() > 64 ? name.substring(0, 64) : name;
+        }
+        if (avatarUrl != null && avatarUrl.length() <= 255) {
+            this.avatarUrl = avatarUrl;
+        }
+        this.profileCheckedAt = checkedAt;
     }
 }

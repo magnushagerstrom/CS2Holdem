@@ -69,6 +69,7 @@ public class SeasonController {
                     rank++,
                     String.valueOf(hand.getSteamId64()),
                     player == null ? null : player.getDisplayName(),
+                    player == null ? null : player.getAvatarUrl(),
                     hand.getHandType().name(),
                     hand.getHandType().displayName(),
                     hand.getScore(),

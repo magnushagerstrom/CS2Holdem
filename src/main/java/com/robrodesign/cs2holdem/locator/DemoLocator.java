@@ -2,6 +2,7 @@ package com.robrodesign.cs2holdem.locator;
 
 import com.robrodesign.cs2holdem.pipeline.LocateJob;
 import com.robrodesign.cs2holdem.pipeline.PipelineService;
+import com.robrodesign.cs2holdem.steam.ShareCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -52,9 +53,19 @@ public class DemoLocator {
 
     private void locate(LocateJob job) {
         long matchId = Long.parseLong(job.matchId());
+        // Read the three numbers from the share code itself, not from the job's separate fields.
+        // Matches saved by an early version of the app have no reservation id in the database
+        // (it is null there), but every match has its share code, and the numbers are in it.
+        ShareCode code;
+        try {
+            code = ShareCode.parse(job.shareCode());
+        } catch (RuntimeException e) {
+            pipeline.failed(matchId, "Unreadable share code: " + e.getMessage(), true);
+            return;
+        }
         try {
             Optional<String> demoUrl = gameCoordinator.findDemoUrl(
-                    matchId, Long.parseLong(job.reservationId()), job.tvPort());
+                    code.matchId(), code.reservationId(), code.tvPort());
             if (demoUrl.isPresent()) {
                 pipeline.demoLocated(matchId, demoUrl.get());
                 log.info("Found the demo of match {}", matchId);

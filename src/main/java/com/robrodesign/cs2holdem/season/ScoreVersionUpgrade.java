@@ -7,7 +7,8 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 /**
- * When the app has started: recalculate the hands that were scored with older rules.
+ * When the app has started: recalculate the hands that were scored with older rules, and work
+ * out the hand for registered players who have cards but no hand (see fillMissingHands).
  *
  * Usually there are none and this is one quick query. After a change to the scoring rules
  * (and a raised SeasonHand.CURRENT_SCORE_VERSION) every stored hand is recalculated once,
@@ -30,6 +31,10 @@ public class ScoreVersionUpgrade {
         if (count > 0) {
             log.info("Recalculated {} season hands with the scoring rules of version {}",
                     count, SeasonHand.CURRENT_SCORE_VERSION);
+        }
+        int filled = seasonHandService.fillMissingHands();
+        if (filled > 0) {
+            log.info("Worked out a missing season hand for {} registered players", filled);
         }
     }
 }

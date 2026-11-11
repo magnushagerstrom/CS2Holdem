@@ -21,6 +21,15 @@ public interface SeasonHandRepository extends JpaRepository<SeasonHand, Long> {
     @EntityGraph(attributePaths = "items")
     List<SeasonHand> findByScoreVersionLessThan(int scoreVersion);
 
+    // Registered players who have no hand in this season. Most of them simply have no cards yet.
+    @Query("""
+            select u.steamId64 from AppUser u
+            where not exists (
+                select h from SeasonHand h where h.steamId64 = u.steamId64 and h.seasonId = :seasonId
+            )
+            """)
+    List<Long> findRegisteredWithoutHand(@Param("seasonId") long seasonId);
+
     @Query("""
             select h from SeasonHand h
             where h.seasonId = :seasonId

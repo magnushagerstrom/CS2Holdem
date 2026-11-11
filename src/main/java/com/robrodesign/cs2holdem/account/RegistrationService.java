@@ -3,6 +3,8 @@ package com.robrodesign.cs2holdem.account;
 import com.robrodesign.cs2holdem.player.Player;
 import com.robrodesign.cs2holdem.player.PlayerRepository;
 import com.robrodesign.cs2holdem.privacy.PrivacyService;
+import com.robrodesign.cs2holdem.season.SeasonHandService;
+import com.robrodesign.cs2holdem.season.SeasonService;
 import com.robrodesign.cs2holdem.steam.ShareCode;
 import com.robrodesign.cs2holdem.steam.SteamMatchHistoryClient;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,8 @@ public class RegistrationService {
     private final SteamMatchHistoryClient steamClient;
     private final TransactionTemplate transactionTemplate;
     private final PrivacyService privacyService;
+    private final SeasonHandService seasonHandService;
+    private final SeasonService seasonService;
 
     // Konstruktor-injektion: Spring skickar in alla beroenden. Fälten kan vara final,
     // och i ett test kan vi enkelt skicka in egna (fejkade) versioner.
@@ -24,12 +28,16 @@ public class RegistrationService {
                                PlayerRepository playerRepository,
                                SteamMatchHistoryClient steamClient,
                                TransactionTemplate transactionTemplate,
-                               PrivacyService privacyService) {
+                               PrivacyService privacyService,
+                               SeasonHandService seasonHandService,
+                               SeasonService seasonService) {
         this.appUserRepository = appUserRepository;
         this.playerRepository = playerRepository;
         this.steamClient = steamClient;
         this.transactionTemplate = transactionTemplate;
         this.privacyService = privacyService;
+        this.seasonHandService = seasonHandService;
+        this.seasonService = seasonService;
     }
 
     public AppUser register(long steamId64, String authCode, String knownShareCode) {
@@ -46,12 +54,18 @@ public class RegistrationService {
         steamClient.findNextShareCode(steamId64, authCode, knownShareCode);
 
         // Spelaren och användaren sparas i EN transaktion: antingen sparas båda, eller ingen.
-        return transactionTemplate.execute(status -> {
+        AppUser user = transactionTemplate.execute(status -> {
             // Registering is asking to be stored, so an earlier "delete me" no longer applies
             privacyService.optIn(steamId64);
             Player player = playerRepository.findById(steamId64)
                     .orElseGet(() -> playerRepository.save(new Player(steamId64, null)));
             return appUserRepository.save(new AppUser(player, authCode, knownShareCode));
         });
+
+        // The player may already have cards: from a friend's match that was read before they
+        // signed up. Hands are otherwise only worked out when a new match arrives, so without
+        // this they would have cards but no hand until their next match.
+        seasonHandService.refresh(steamId64, seasonService.current());
+        return user;
     }
 }

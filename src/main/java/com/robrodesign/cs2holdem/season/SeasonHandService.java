@@ -140,12 +140,36 @@ public class SeasonHandService {
             }
             PlayerCollection collection = load(stored.getSteamId64(), season);
             Optional<Hand> hand = toHand(stored, collection);
-            if (hand.isPresent()) {
-                save(stored, hand.get(), stored.isCustom(), collection);
+            if (stored.isCustom() && hand.isPresent()) {
+                save(stored, hand.get(), true, collection); // their own choice: same cards, new score
             } else {
-                refresh(stored.getSteamId64(), season); // a card is gone: pick the strongest hand again
+                // Automatic: with new rules another combination may now be the strongest
+                refresh(stored.getSteamId64(), season);
             }
             count++;
+        }
+        return count;
+    }
+
+    /**
+     * Works out the hand for every registered player who has none this season. A player can have
+     * cards without a hand when their matches were read before they signed up, since hands are
+     * otherwise only worked out when a new match arrives.
+     *
+     * @return how many players got a hand
+     */
+    @Transactional
+    public int fillMissingHands() {
+        Season season = seasonService.current();
+        if (season.isLocked()) {
+            return 0;
+        }
+        int count = 0;
+        for (long steamId64 : handRepository.findRegisteredWithoutHand(season.getId())) {
+            refresh(steamId64, season);
+            if (handRepository.findBySteamId64AndSeasonId(steamId64, season.getId()).isPresent()) {
+                count++;
+            }
         }
         return count;
     }

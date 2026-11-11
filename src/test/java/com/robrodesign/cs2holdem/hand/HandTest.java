@@ -42,8 +42,8 @@ class HandTest {
 
         Hand hand = new Hand(HandType.THREE_OF_A_KIND, List.of(triple));
 
-        // 50 bas + 3 x 18 kill-poäng + 3 x (5 + 2) stämpelpoäng x 4
-        assertThat(hand.score()).isEqualTo(50 + 54 + 84);
+        // 500 bas + 3 x 180 kill-poäng + 3 x (5 + 2) stämpelpoäng x 40
+        assertThat(hand.score()).isEqualTo(500 + 540 + 840);
     }
 
     @Test
@@ -52,8 +52,8 @@ class HandTest {
                 rifleEvent(EventType.TRIPLE_KILL, MATCH_A, 3),
                 rifleEvent(EventType.DOUBLE_KILL, MATCH_B, 11)));
 
-        // 110 bas + 5 x 12 kill-poäng, inga stämplar
-        assertThat(hand.score()).isEqualTo(170);
+        // 1100 bas + 5 x 120 kill-poäng, inga stämplar
+        assertThat(hand.score()).isEqualTo(1700);
     }
 
     @Test

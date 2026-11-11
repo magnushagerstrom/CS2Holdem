@@ -7,6 +7,7 @@ import com.robrodesign.cs2holdem.season.SeasonHandService.HandItem;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A season hand. Each item is either a card or, for straights and flushes, an ordinary kill.
@@ -17,13 +18,13 @@ public record HandView(SeasonView season, String type, String typeName, int base
     public record Item(String kind, CardView card, KillView kill) {
     }
 
-    public static HandView from(HandDetails details) {
+    public static HandView from(HandDetails details, Map<Long, String> maps) {
         List<Item> items = new ArrayList<>();
         for (HandItem item : details.items()) {
             if (item.card() instanceof Event event) {
-                items.add(new Item("CARD", CardView.from(item.id(), event), null));
+                items.add(new Item("CARD", CardView.from(item.id(), event, maps), null));
             } else if (item.card() instanceof RoundKill kill) {
-                items.add(new Item("KILL", null, KillView.from(item.id(), kill)));
+                items.add(new Item("KILL", null, KillView.from(item.id(), kill, maps)));
             }
         }
         return new HandView(

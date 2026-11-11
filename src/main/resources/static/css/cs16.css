@@ -259,7 +259,9 @@ button.card:hover { color: var(--highlight); }
   letter-spacing: -1px;
 }
 .card-name { font-size: 12px; }
-.card-meta { margin-top: auto; color: var(--text-dim); }
+.card-meta { margin-top: auto; padding-top: 4px; color: var(--text-dim); }
+/* Where it happened: the map and the places on it */
+.card-where { margin-top: 6px; color: var(--text); font-size: 11px; line-height: 1.3; }
 .card-points {
   position: absolute;
   top: 8px;

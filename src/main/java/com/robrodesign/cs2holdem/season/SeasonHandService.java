@@ -121,6 +121,35 @@ public class SeasonHandService {
         return currentHand(steamId64);
     }
 
+    // ---------------------------------------------------------------- new scoring rules
+
+    /**
+     * Recalculates every hand that was scored with older rules (see SeasonHand.CURRENT_SCORE_VERSION),
+     * so old and new hands compare fairly on the leaderboard. A player's own hand stays their own;
+     * only its score changes. Locked seasons are history and keep their scores.
+     *
+     * @return how many hands were recalculated
+     */
+    @Transactional
+    public int rescoreOutdated() {
+        int count = 0;
+        for (SeasonHand stored : handRepository.findByScoreVersionLessThan(SeasonHand.CURRENT_SCORE_VERSION)) {
+            Season season = seasonService.byId(stored.getSeasonId());
+            if (season.isLocked()) {
+                continue;
+            }
+            PlayerCollection collection = load(stored.getSteamId64(), season);
+            Optional<Hand> hand = toHand(stored, collection);
+            if (hand.isPresent()) {
+                save(stored, hand.get(), stored.isCustom(), collection);
+            } else {
+                refresh(stored.getSteamId64(), season); // a card is gone: pick the strongest hand again
+            }
+            count++;
+        }
+        return count;
+    }
+
     // ---------------------------------------------------------------- reading
 
     @Transactional(readOnly = true)

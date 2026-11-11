@@ -18,6 +18,9 @@ public interface SeasonHandRepository extends JpaRepository<SeasonHand, Long> {
     @EntityGraph(attributePaths = "items")
     List<SeasonHand> findBySteamId64OrderBySeasonIdDesc(long steamId64);
 
+    @EntityGraph(attributePaths = "items")
+    List<SeasonHand> findByScoreVersionLessThan(int scoreVersion);
+
     @Query("""
             select h from SeasonHand h
             where h.seasonId = :seasonId

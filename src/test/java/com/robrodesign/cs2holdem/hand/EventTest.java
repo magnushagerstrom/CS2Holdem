@@ -99,7 +99,7 @@ class EventTest {
         Event event = new Event(EventType.TRIPLE_KILL, MATCH_ID, 7, rifleKills(3, 90));
 
         assertThat(event.totalDamage()).isEqualTo(270);
-        assertThat(event.killPoints()).isEqualTo(30); // 3 x (90 x 120 / 1000 = 10)
+        assertThat(event.killPoints()).isEqualTo(324); // 3 x (90 x 120 / 100 = 108)
     }
 
     // ---------- perfect ace (royal flush)

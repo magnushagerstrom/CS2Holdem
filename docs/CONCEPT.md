@@ -227,17 +227,17 @@ score = base points of the hand type
 
 | Hand type       | Base points |
 |-----------------|-------------|
-| High card       | 10          |
-| Pair            | 20          |
-| Two pair        | 35          |
-| Three of a kind | 50          |
-| Straight        | 70          |
-| Flush           | 90          |
-| Full house      | 110         |
-| Four of a kind  | 140         |
-| Straight flush  | 170         |
-| Five of a kind  | 200         |
-| Royal flush     | 250         |
+| High card       | 100         |
+| Pair            | 200         |
+| Two pair        | 350         |
+| Three of a kind | 500         |
+| Straight        | 700         |
+| Flush           | 900         |
+| Full house      | 1100        |
+| Four of a kind  | 1400        |
+| Straight flush  | 1700        |
+| Five of a kind  | 2000        |
+| Royal flush     | 2500        |
 
 The gaps grow towards the top, so the rarest hands are hard to overtake.
 
@@ -247,11 +247,15 @@ Each kill earns points from **how much damage** it took and **how hard the weapo
 use**:
 
 ```
-kill points = damage / 10 x weapon difficulty
+kill points = damage x weapon difficulty
 ```
 
 - **Damage** is health removed from the victim, capped at 100 per victim per round, so a
-  clean kill is worth at most 10 x the difficulty.
+  clean kill is worth at most 100 x the difficulty. Every point of damage counts: until
+  November 2026 the formula was damage / 10, and since only whole points are kept, 91 and 99
+  damage both gave 9 points. Two players could then share a score although one did clearly
+  more damage. Everything else was multiplied by 10 at the same time, so the balance between
+  hand type, kills and stamps is unchanged.
 - **Weapon difficulty** is a multiplier between **1.0 and 2.0**, based on the weapon's
   accuracy and spread in CS2. Easy, forgiving weapons sit near 1.0; weapons that are hard to
   hit with, such as the Desert Eagle or the SSG 08, sit higher. A knife or Zeus kill counts as
@@ -259,7 +263,7 @@ kill points = damage / 10 x weapon difficulty
 
 ### Stamp points
 
-Every stamp adds its points (see section 4), multiplied by **4** so that stamps carry real
+Every stamp adds its points (see section 4), multiplied by **40** so that stamps carry real
 weight next to kill points.
 
 ### Ties

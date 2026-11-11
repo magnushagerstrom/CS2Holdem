@@ -28,6 +28,13 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class SeasonHand {
 
+    /**
+     * The version of the scoring rules in the hand engine. Raise it whenever the rules change
+     * how much a hand is worth; stored hands with a lower version are then recalculated once,
+     * at the next start (ScoreVersionUpgrade). 2 = every point of damage counts (November 2026).
+     */
+    public static final int CURRENT_SCORE_VERSION = 2;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -47,6 +54,10 @@ public class SeasonHand {
 
     @Column(name = "total_damage", nullable = false)
     private int totalDamage;
+
+    // Which version of the scoring rules the score was calculated with, see CURRENT_SCORE_VERSION
+    @Column(name = "score_version", nullable = false)
+    private int scoreVersion = CURRENT_SCORE_VERSION;
 
     // true = the player built this hand; false = the strongest hand, chosen automatically
     @Column(name = "custom", nullable = false)
@@ -72,6 +83,7 @@ public class SeasonHand {
         this.score = score;
         this.totalDamage = totalDamage;
         this.custom = custom;
+        this.scoreVersion = CURRENT_SCORE_VERSION;
         this.items.clear();
         int position = 0;
         for (ItemRef ref : refs) {

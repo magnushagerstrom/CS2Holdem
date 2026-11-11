@@ -75,30 +75,30 @@ function avatar(url) {
  * text colour, so they follow the theme. Keys are the names the API sends.
  */
 const STAMPS = {
-  'Headshot': { points: 4, when: 'the kill was a headshot',
+  'Headshot': { points: 40, when: 'the kill was a headshot',
     // A head and shoulders with the bullet's path straight through the head
     icon: '<circle cx="8" cy="6.3" r="4"/><path d="M2.5 15c0-3 2.5-4.8 5.5-4.8s5.5 1.8 5.5 4.8M.8 5.6h14.4M13 3.9l2.2 1.7L13 7.3"/>' },
-  'Flashed': { points: 4, when: 'the enemy was blinded by a flashbang',
+  'Flashed': { points: 40, when: 'the enemy was blinded by a flashbang',
     icon: '<circle cx="8" cy="8" r="2" fill="currentColor"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3M3 3l2 2M11 11l2 2M13 3l-2 2M5 11l-2 2"/>' },
-  'Smoked': { points: 8, when: 'the enemy was killed through or inside a smoke',
+  'Smoked': { points: 80, when: 'the enemy was killed through or inside a smoke',
     icon: '<path d="M4.5 12.5h7a3 3 0 0 0 .3-6 4 4 0 0 0-7.6-.8 2.9 2.9 0 0 0 .3 6.8z"/>' },
-  'Burning': { points: 8, when: 'the enemy was standing in fire',
+  'Burning': { points: 80, when: 'the enemy was standing in fire',
     icon: '<path d="M8 15c2.8 0 4.5-1.9 4.5-4.5 0-3-2.8-4-2.8-8-2 1-4 3.2-4 6-.9-.6-1.2-1.6-1.2-2.6C3 7.4 3.5 9 3.5 10.5 3.5 13.1 5.2 15 8 15z"/>' },
-  'Wallbang': { points: 8, when: 'the bullet went through a wall',
+  'Wallbang': { points: 80, when: 'the bullet went through a wall',
     icon: '<path d="M6 2h4v12H6zM6 6h4M6 10h4M8 2v4M8 10v4"/><path d="M1 8h14M12 5.5 14.5 8 12 10.5"/>' },
-  'Blind': { points: 12, when: 'you were blinded by a flashbang',
+  'Blind': { points: 120, when: 'you were blinded by a flashbang',
     icon: '<path d="M1.5 8S4 4 8 4s6.5 4 6.5 4S12 12 8 12 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="1.8"/><path d="M2.5 13.5 13.5 2.5"/>' },
-  'On fire': { points: 12, when: 'you were standing in fire',
+  'On fire': { points: 120, when: 'you were standing in fire',
     icon: '<path fill="currentColor" d="M8 15c2.8 0 4.5-1.9 4.5-4.5 0-3-2.8-4-2.8-8-2 1-4 3.2-4 6-.9-.6-1.2-1.6-1.2-2.6C3 7.4 3.5 9 3.5 10.5 3.5 13.1 5.2 15 8 15z"/>' },
-  'Clutch': { points: 12, when: 'you were the last one alive on your team',
+  'Clutch': { points: 120, when: 'you were the last one alive on your team',
     icon: '<circle cx="4" cy="8" r="2.6" fill="currentColor"/><circle cx="11" cy="3.5" r="1.7"/><circle cx="13.5" cy="8" r="1.7"/><circle cx="11" cy="12.5" r="1.7"/>' },
-  'Lightning': { points: 12, when: 'all kills of the card came within a few seconds',
+  'Lightning': { points: 120, when: 'all kills of the card came within a few seconds',
     icon: '<path d="M9.5 1 3.5 9h4l-1 6 6-8h-4z"/>' },
-  'No-scope': { points: 20, when: 'a kill without zooming in, with a weapon that has a scope',
+  'No-scope': { points: 200, when: 'a kill without zooming in, with a weapon that has a scope',
     icon: '<circle cx="8" cy="8" r="6"/><path d="M8 4v8M4 8h8M2.5 13.5 13.5 2.5"/>' },
-  'One grenade': { points: 20, when: 'all kills of the card came from one HE grenade',
+  'One grenade': { points: 200, when: 'all kills of the card came from one HE grenade',
     icon: '<circle cx="7.5" cy="10" r="4.5"/><path d="M5.5 5.5V4h4v1.5"/><circle cx="12" cy="3" r="1.5"/>' },
-  'One shot': { points: 20, when: 'all kills of the card came from a single bullet',
+  'One shot': { points: 200, when: 'all kills of the card came from a single bullet',
     icon: '<circle cx="6" cy="8" r="2.4"/><circle cx="11" cy="8" r="2.4"/><path d="M1 8h14"/>' },
 };
 
@@ -133,6 +133,29 @@ function rarity(card) {
   return perfect ? 'GOLD' : 'ACE';
 }
 
+/** "de_mirage" -> "Mirage". Valve's map names start with a prefix for the game mode. */
+function mapLabel(name) {
+  if (!name) return '';
+  const bare = name.replace(/^(de|cs|ar|dz)_/, '').replace(/_/g, ' ');
+  return bare.charAt(0).toUpperCase() + bare.slice(1);
+}
+
+/** The demo's place names are written together: "BombsiteB" -> "Bombsite B", "TopofMid" -> "Top of Mid". */
+function placeLabel(area) {
+  return String(area || '')
+    .replace(/([a-z])of([A-Z])/g, '$1 of $2')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .trim();
+}
+
+/** "Mirage · B Site, Connector": the map, then every place the kills happened, each once. */
+function whereHtml(mapName, areas) {
+  const places = [...new Set(areas.map(placeLabel).filter(Boolean))];
+  const parts = [mapLabel(mapName), places.join(', ')].filter(Boolean);
+  return parts.length ? `<span class="card-where">${esc(parts.join(' · '))}</span>` : '';
+}
+
 /** One card. As a button when it can be picked for a hand. */
 function cardHtml(card, pickable = false) {
   const tag = pickable ? 'button' : 'div';
@@ -143,6 +166,7 @@ function cardHtml(card, pickable = false) {
     <span class="card-face">${FACES[card.type] || '?'}</span>
     <span class="card-name">${esc(card.typeName)}</span>
     ${stamps([...card.stamps, ...killStamps])}
+    ${whereHtml(card.mapName, card.kills.map(k => k.mapArea))}
     <span class="card-meta">Round ${card.round}<br>${card.totalDamage} damage</span>
   </${tag}>`;
 }
@@ -154,7 +178,8 @@ function killHtml(kill) {
     <span class="card-face">1</span>
     <span class="card-name">${esc(kill.weaponGroup)}</span>
     ${stamps(kill.stamps)}
-    <span class="card-meta">${esc(kill.mapArea || '')}<br>Round ${kill.round ?? ''}, ${kill.damage} damage</span>
+    ${whereHtml(kill.mapName, [kill.mapArea])}
+    <span class="card-meta">Round ${kill.round ?? ''}<br>${kill.damage} damage</span>
   </div>`;
 }
 
@@ -245,17 +270,17 @@ function howItWorks() {
     <p>A hand holds at most five kills, and its cards come from different rounds. They can come
       from any match in the season, except straights and flushes, which happen within one match.</p>
     ${table(['Hand', 'Built from', 'Base points'], [
-      ['High card', 'one special kill', '10'],
-      ['Pair', 'a double kill', '20'],
-      ['Two pair', 'two double kills', '35'],
-      ['Three of a kind', 'a triple kill', '50'],
-      ['Straight', 'a kill in five rounds in a row, with five different weapon types', '70'],
-      ['Flush', 'five kills in the same place on the map, within five rounds in a row', '90'],
-      ['Full house', 'a triple kill and a double kill', '110'],
-      ['Four of a kind', 'a quad kill', '140'],
-      ['Straight flush', 'a straight where all five kills are in the same place', '170'],
-      ['Five of a kind', 'an ace', '200'],
-      ['Royal flush', 'a perfect ace: five headshots, or all 500 damage dealt by you', '250'],
+      ['High card', 'one special kill', '100'],
+      ['Pair', 'a double kill', '200'],
+      ['Two pair', 'two double kills', '350'],
+      ['Three of a kind', 'a triple kill', '500'],
+      ['Straight', 'a kill in five rounds in a row, with five different weapon types', '700'],
+      ['Flush', 'five kills in the same place on the map, within five rounds in a row', '900'],
+      ['Full house', 'a triple kill and a double kill', '1100'],
+      ['Four of a kind', 'a quad kill', '1400'],
+      ['Straight flush', 'a straight where all five kills are in the same place', '1700'],
+      ['Five of a kind', 'an ace', '2000'],
+      ['Royal flush', 'a perfect ace: five headshots, or all 500 damage dealt by you', '2500'],
     ])}
     <p class="dim">The weapon types for a straight are rifle, sniper, pistol, SMG, shotgun, heavy,
       grenade and knife or Zeus. An AK-47 and an M4 are the same type, so a straight means buying
@@ -275,6 +300,10 @@ function howItWorks() {
       plus every stamp. A kill is worth more the more damage it did and the harder the weapon is
       to hit with: a Desert Eagle or a scout counts for more than an AK, and a knife or Zeus
       counts the most. So a spectacular three of a kind can beat a dull full house.</p>
+    <p>Every point of damage counts. A kill is worth its damage times the weapon's difficulty,
+      which goes from 1.0 for the easiest weapons to 2.0 for a knife or Zeus: 90 damage with an AK-47
+      gives 103 points, the same 90 damage with a Desert Eagle 135. If two hands still end up
+      on exactly the same points, the one with more damage ranks higher.</p>
 
     <h2>Getting started</h2>
     <p>Sign in through Steam and connect your match history once. New matches are found
@@ -738,6 +767,7 @@ async function leaderboard() {
           : esc(e.displayName || 'Unknown player')}</td>
         <td>${esc(e.typeName)}</td>
         <td class="num">${e.score}</td>
+        <td class="num dim">${e.totalDamage}</td>
       </tr>`).join('');
     drawWindow(`Leaderboard, ${season.name}`, entries.length === 0
       ? '<p>No hands yet this season.</p>'
@@ -747,9 +777,11 @@ async function leaderboard() {
         </div>
         <div class="table-wrap"><table>
           <thead><tr><th class="pick"><span class="visually-hidden">Compare</span></th><th class="num">#</th>
-            <th>Player</th><th>Hand</th><th class="num">Points</th></tr></thead>
+            <th>Player</th><th>Hand</th><th class="num">Points</th>
+            <th class="num" title="Decides the order when two hands have the same points">Damage</th></tr></thead>
           <tbody>${rows}</tbody>
-        </table></div>`);
+        </table></div>
+        <p class="hint">Same points? Then the hand with more damage ranks higher.</p>`);
 
     if (entries.length > 0) wireComparePicks(entries);
   } catch (e) {

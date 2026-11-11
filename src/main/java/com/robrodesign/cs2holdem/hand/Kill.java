@@ -47,7 +47,10 @@ public record Kill(
     }
 
     public int killPoints() {
-        return damage * difficulty / 1000;
+        // difficulty is 100-200 (1.0-2.0 x 100), so this is damage x difficulty: every point of
+        // damage counts. With / 1000 (damage / 10) integer division cut off everything after the
+        // decimal point, and 91 and 99 damage both gave 9 points.
+        return damage * difficulty / 100;
     }
 
     /** Kill points plus weighted stamp points: what this kill adds to a hand's score. */

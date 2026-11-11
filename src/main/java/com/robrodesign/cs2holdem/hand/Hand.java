@@ -14,7 +14,7 @@ import java.util.Set;
 public record Hand(HandType type, List<Card> cards) {
 
     public static final int MAX_KILLS = 5;
-    public static final int STAMP_MULTIPLIER = 4;
+    public static final int STAMP_MULTIPLIER = 40;
 
     public Hand {
         if (type == null) {

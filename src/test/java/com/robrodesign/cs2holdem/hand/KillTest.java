@@ -20,14 +20,25 @@ class KillTest {
     void killPointsAreDamageTimesDifficulty() {
         Kill kill = new Kill(WeaponGroup.PISTOL, 170, 100, "Mid");
 
-        assertThat(kill.killPoints()).isEqualTo(17);
+        assertThat(kill.killPoints()).isEqualTo(170); // 100 x 170 / 100
     }
 
     @Test
     void killPointsAreRoundedDown() {
         Kill kill = new Kill(WeaponGroup.RIFLE, 110, 85, "A Site");
 
-        assertThat(kill.killPoints()).isEqualTo(9); // 9350 / 1000 = 9.35
+        assertThat(kill.killPoints()).isEqualTo(93); // 9350 / 100 = 93.5
+    }
+
+    @Test
+    void everyPointOfDamageCounts() {
+        // With the old scale (damage / 10) both of these gave 9 points, so a player with more
+        // damage could end up on the same score as one with less.
+        Kill weaker = new Kill(WeaponGroup.RIFLE, 100, 91, "A Site");
+        Kill stronger = new Kill(WeaponGroup.RIFLE, 100, 99, "A Site");
+
+        assertThat(weaker.killPoints()).isEqualTo(91);
+        assertThat(stronger.killPoints()).isEqualTo(99);
     }
 
     // ---------- the limits themselves are allowed

@@ -3,10 +3,13 @@ package com.robrodesign.cs2holdem.api;
 import com.robrodesign.cs2holdem.account.AppUserRepository;
 import com.robrodesign.cs2holdem.collection.CollectionService;
 import com.robrodesign.cs2holdem.collection.PlayerCollection;
+import com.robrodesign.cs2holdem.hand.Card;
 import com.robrodesign.cs2holdem.hand.Event;
 import com.robrodesign.cs2holdem.hand.RoundKill;
 import com.robrodesign.cs2holdem.season.Season;
 import com.robrodesign.cs2holdem.season.SeasonHandService;
+import com.robrodesign.cs2holdem.season.SeasonHandService.HandDetails;
+import com.robrodesign.cs2holdem.season.SeasonHandService.HandItem;
 import com.robrodesign.cs2holdem.season.SeasonService;
 import com.robrodesign.cs2holdem.stats.LifetimeStatsView;
 import com.robrodesign.cs2holdem.stats.PlayerStatsService;
@@ -22,7 +25,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A player's collection and season hands.
@@ -42,11 +47,12 @@ public class PlayerController {
     private final PlayerStatsService statsService;
     private final SteamLifetimeStatsClient lifetimeClient;
     private final AppUserRepository appUserRepository;
+    private final MapNames mapNames;
 
     public PlayerController(CollectionService collectionService, SeasonService seasonService,
                             SeasonHandService seasonHandService, CurrentPlayer currentPlayer,
                             PlayerStatsService statsService, SteamLifetimeStatsClient lifetimeClient,
-                            AppUserRepository appUserRepository) {
+                            AppUserRepository appUserRepository, MapNames mapNames) {
         this.collectionService = collectionService;
         this.seasonService = seasonService;
         this.seasonHandService = seasonHandService;
@@ -54,6 +60,7 @@ public class PlayerController {
         this.statsService = statsService;
         this.lifetimeClient = lifetimeClient;
         this.appUserRepository = appUserRepository;
+        this.mapNames = mapNames;
     }
 
     /**
@@ -91,11 +98,14 @@ public class PlayerController {
         Season season = seasonId == null ? seasonService.current() : seasonService.byId(seasonId);
         PlayerCollection collection = collectionService.load(steamId64, season.getStartsAt(), season.getEndsAt());
 
+        List<Card> everything = new ArrayList<>(collection.events());
+        everything.addAll(collection.roundKills());
+        Map<Long, String> maps = mapNames.of(everything);
         List<CardView> cards = collection.events().stream()
-                .map((Event event) -> CardView.from(collection.idOf(event), event))
+                .map((Event event) -> CardView.from(collection.idOf(event), event, maps))
                 .toList();
         List<KillView> kills = collection.roundKills().stream()
-                .map((RoundKill kill) -> KillView.from(collection.idOf(kill), kill))
+                .map((RoundKill kill) -> KillView.from(collection.idOf(kill), kill, maps))
                 .toList();
         return new CollectionView(SeasonView.from(season), cards, kills);
     }
@@ -105,7 +115,7 @@ public class PlayerController {
     public ResponseEntity<HandView> currentHand(@PathVariable("steamId64") long steamId64) {
         requirePublicProfile(steamId64);
         return seasonHandService.currentHand(steamId64)
-                .map(HandView::from)
+                .map(this::handView)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }
@@ -114,7 +124,7 @@ public class PlayerController {
     @GetMapping("/hands")
     public List<HandView> allHands(@PathVariable("steamId64") long steamId64) {
         requirePublicProfile(steamId64);
-        return seasonHandService.allHands(steamId64).stream().map(HandView::from).toList();
+        return seasonHandService.allHands(steamId64).stream().map(this::handView).toList();
     }
 
     // PUT /api/players/{id}/hand : bygg en egen hand
@@ -122,7 +132,7 @@ public class PlayerController {
     public HandView buildHand(@PathVariable("steamId64") long steamId64,
                               @Valid @RequestBody BuildHandRequest request) {
         currentPlayer.requireSelf(steamId64);
-        return HandView.from(seasonHandService.buildCustom(steamId64, request.cardIdsAsLong(),
+        return handView(seasonHandService.buildCustom(steamId64, request.cardIdsAsLong(),
                 request.killIdsAsLong()));
     }
 
@@ -131,8 +141,14 @@ public class PlayerController {
     public ResponseEntity<HandView> resetHand(@PathVariable("steamId64") long steamId64) {
         currentPlayer.requireSelf(steamId64);
         return seasonHandService.resetToAutomatic(steamId64)
-                .map(HandView::from)
+                .map(this::handView)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    /** A hand with the map of every card, looked up in one query. */
+    private HandView handView(HandDetails details) {
+        List<Card> cards = details.items().stream().map(HandItem::card).toList();
+        return HandView.from(details, mapNames.of(cards));
     }
 }

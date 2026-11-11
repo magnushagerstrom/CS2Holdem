@@ -1,0 +1,13 @@
+# Det här skickas INTE in till Docker när en bild byggs.
+# .env och data/ innehåller hemligheter (lösenord, bot-token) och får aldrig hamna i en bild.
+.env
+.env.*
+data/
+target/
+.git/
+.idea/
+*.iml
+http/
+docs/
+worker/worker.exe
+worker/worker

@@ -395,7 +395,7 @@ function register() {
     button.disabled = true;
     button.textContent = 'Connecting...';
     try {
-      const result = await api('/api/accounts', {
+      await api('/api/accounts', {
         method: 'POST',
         body: {
           steamId64: state.me.steamId64,
@@ -453,17 +453,84 @@ async function matches() {
   }
 }
 
-async function collection() {
+/**
+ * All cards a player has this season, strongest first.
+ * Without an id it is your own collection (the menu item); with one, another player's,
+ * opened from their hand on a profile or in a comparison.
+ */
+async function collection(steamId64 = state.me.steamId64) {
+  const own = state.me && state.me.steamId64 === steamId64;
   drawWindow('Collection', '<p class="dim">Loading cards...</p>');
   try {
-    const data = await api(`/api/players/${state.me.steamId64}/collection`);
+    // The collection does not carry the player's name, so for someone else it comes from the
+    // leaderboard: anyone with cards has a hand there
+    const [data, entries] = await Promise.all([
+      api(`/api/players/${encodeURIComponent(steamId64)}/collection`),
+      own ? Promise.resolve([]) : api('/api/seasons/current/leaderboard').catch(() => []),
+    ]);
+    const entry = entries.find(e => e.steamId64 === steamId64);
+    const name = (entry && entry.displayName) || 'This player';
     const cards = [...data.cards].sort((a, b) => b.points - a.points);
-    drawWindow(`Collection, ${data.season.name}`, cards.length === 0
-      ? '<p>No cards yet this season. Play a match, and its cards appear here a few minutes after it is read.</p>'
-      : `<p>${cards.length} cards and ${data.kills.length} kills this season, strongest first.</p>
-         <div class="cards">${cards.map(c => cardHtml(c)).join('')}</div>`);
+
+    const empty = own
+      ? 'No cards yet this season. Play a match, and its cards appear here a few minutes after it is read.'
+      : `${esc(name)} has no cards yet this season.`;
+    const back = own ? '' : `<div class="buttons">
+        <a class="button" href="#/player/${esc(steamId64)}">${esc(name)}'s profile</a>
+        <a class="button" href="#/leaderboard">Leaderboard</a>
+      </div>`;
+
+    drawWindow(own ? `Collection, ${data.season.name}` : `${name}'s collection, ${data.season.name}`,
+      (cards.length === 0
+        ? `<p>${empty}</p>`
+        : `<p>${cards.length} cards and ${data.kills.length} kills this season, strongest first.</p>
+           <div class="cards">${cards.map(c => cardHtml(c)).join('')}</div>`) + back);
   } catch (e) {
+    if (e.status === 404) {
+      drawWindow('Collection', `<p>This player has no public collection. Only players who signed up
+        themselves have one.</p><p class="dim"><a href="#/privacy">Why?</a></p>`);
+      return;
+    }
     drawError('Collection', e);
+  }
+}
+
+/** The button under a hand that leads to the cards it was picked from. */
+function collectionButton(steamId64, name) {
+  const own = state.me && state.me.steamId64 === steamId64;
+  const href = own ? '#/collection' : `#/player/${esc(steamId64)}/collection`;
+  const text = own ? 'See my collection' : `See ${esc(name)}'s collection`;
+  return `<div class="buttons"><a class="button" href="${href}">${text}</a></div>`;
+}
+
+/**
+ * A season hand: type, points and the cards. Used on "My hand" and on every profile.
+ * who: 'you' on your own page, otherwise the player's name, for the "built by" line.
+ */
+function handHtml(current, who) {
+  const items = current.items.map(i => (i.card ? cardHtml(i.card) : killHtml(i.kill))).join('');
+  const how = current.custom
+    ? `, built by ${who === 'you' ? 'you' : esc(who)}`
+    : who === 'you' ? ', the strongest you can make' : ', the strongest from their cards';
+  return `<div class="hand-head">
+      <span class="hand-type">${esc(current.typeName)}</span>
+      <span class="hand-score">${current.score} points</span>
+      <span class="dim">${current.totalDamage} damage${how}</span>
+    </div>
+    <div class="cards">${items}</div>`;
+}
+
+/** The season hand on a profile, loaded after the page like the lifetime numbers. */
+async function profileHand(steamId64, name) {
+  const box = document.getElementById('profile-hand');
+  try {
+    const current = await api(`/api/players/${encodeURIComponent(steamId64)}/hand`);
+    if (!box.isConnected) return;
+    box.innerHTML = '<h2>Season hand</h2>' + (current
+      ? handHtml(current, name) + collectionButton(steamId64, name)
+      : '<p class="dim">No hand yet this season. It appears with the first card.</p>');
+  } catch (e) {
+    if (box.isConnected) box.innerHTML = '<h2>Season hand</h2><p class="dim">The hand could not be loaded.</p>';
   }
 }
 
@@ -476,14 +543,8 @@ async function hand() {
         cards as soon as you have one.</p><div class="buttons"><a class="button" href="#/matches">See matches</a></div>`);
       return;
     }
-    const items = current.items.map(i => (i.card ? cardHtml(i.card) : killHtml(i.kill))).join('');
     drawWindow(`My hand, ${current.season.name}`, `
-      <div class="hand-head">
-        <span class="hand-type">${esc(current.typeName)}</span>
-        <span class="hand-score">${current.score} points</span>
-        <span class="dim">${current.totalDamage} damage${current.custom ? ', built by you' : ', the strongest you can make'}</span>
-      </div>
-      <div class="cards">${items}</div>
+      ${handHtml(current, 'you')}
       <div class="buttons">
         <a class="button" href="#/build">Build my own hand</a>
         ${current.custom ? '<button class="button" type="button" id="reset">Use the strongest hand</button>' : ''}
@@ -621,9 +682,11 @@ async function profile(steamId64) {
           <a class="dim" href="https://steamcommunity.com/profiles/${esc(p.steamId64)}" target="_blank" rel="noopener">Steam profile</a>
         </div>
       </div>
+      <section class="profile-hand" id="profile-hand"><h2>Season hand</h2><p class="dim">Loading...</p></section>
       ${body}
       <p class="dim">Premier, Competitive and Wingman matches this season. Exit frags count here, as on the scoreboard; team kills and bots do not.</p>`);
 
+    profileHand(steamId64, name);
     if (s.matches > 0) lifetime(steamId64);
   } catch (e) {
     if (e.status === 404) {
@@ -663,7 +726,12 @@ async function leaderboard() {
       api('/api/seasons/current'),
       api('/api/seasons/current/leaderboard'),
     ]);
+    // Only registered players have a public hand, so only they get a box to tick
     const rows = entries.map(e => `<tr>
+        <td class="pick">${e.registered
+          ? `<input type="checkbox" class="compare-pick" value="${esc(e.steamId64)}"
+              aria-label="Compare ${esc(e.displayName || e.steamId64)}">`
+          : ''}</td>
         <td class="num">${e.rank}</td>
         <td class="player">${avatar(e.avatarUrl)}${e.registered
           ? `<a href="#/player/${esc(e.steamId64)}">${esc(e.displayName || e.steamId64)}</a>`
@@ -673,12 +741,116 @@ async function leaderboard() {
       </tr>`).join('');
     drawWindow(`Leaderboard, ${season.name}`, entries.length === 0
       ? '<p>No hands yet this season.</p>'
-      : `<div class="table-wrap"><table>
-          <thead><tr><th class="num">#</th><th>Player</th><th>Hand</th><th class="num">Points</th></tr></thead>
+      : `<div class="compare-bar">
+          <span id="compare-status" class="dim">Tick two players to compare their hands side by side.</span>
+          <button class="button" type="button" id="compare" disabled>Compare</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th class="pick"><span class="visually-hidden">Compare</span></th><th class="num">#</th>
+            <th>Player</th><th>Hand</th><th class="num">Points</th></tr></thead>
           <tbody>${rows}</tbody>
         </table></div>`);
+
+    if (entries.length > 0) wireComparePicks(entries);
   } catch (e) {
     drawError('Leaderboard', e);
+  }
+}
+
+/** The tick boxes on the leaderboard: at most two at a time, then Compare opens both hands. */
+function wireComparePicks(entries) {
+  const boxes = [...document.querySelectorAll('.compare-pick')];
+  const button = document.getElementById('compare');
+  const status = document.getElementById('compare-status');
+  const nameOf = id => {
+    const entry = entries.find(e => e.steamId64 === id);
+    return (entry && entry.displayName) || id;
+  };
+
+  const update = () => {
+    const picked = boxes.filter(b => b.checked).map(b => b.value);
+    // With two ticked, the rest are locked, so nobody can pick a third by mistake
+    boxes.forEach(b => { b.disabled = !b.checked && picked.length >= 2; });
+    button.disabled = picked.length !== 2;
+    status.textContent = picked.length === 0
+      ? 'Tick two players to compare their hands side by side.'
+      : picked.length === 1
+        ? `${nameOf(picked[0])} against... tick one more.`
+        : `${nameOf(picked[0])} against ${nameOf(picked[1])}`;
+  };
+
+  boxes.forEach(b => b.addEventListener('change', update));
+  button.addEventListener('click', () => {
+    const [first, second] = boxes.filter(b => b.checked).map(b => b.value);
+    location.hash = `#/compare/${first}/${second}`; // a link of its own, so it can be shared
+  });
+}
+
+/** Which of two hands is stronger: points first, then damage, the same order as the leaderboard. */
+function strongerHand(first, second) {
+  if (first.score !== second.score) return first.score > second.score ? 0 : 1;
+  if (first.totalDamage !== second.totalDamage) return first.totalDamage > second.totalDamage ? 0 : 1;
+  return -1; // exactly even
+}
+
+/** Two season hands side by side, opened from the leaderboard. */
+async function compare(firstId, secondId) {
+  drawWindow('Compare hands', '<p class="dim">Loading both hands...</p>');
+  // One hand failing to load should not hide the other, so each catches its own error
+  const handOf = id => api(`/api/players/${id}/hand`).catch(error => ({ error }));
+  try {
+    const [entries, first, second] = await Promise.all([
+      api('/api/seasons/current/leaderboard'),
+      handOf(firstId),
+      handOf(secondId),
+    ]);
+    const hands = [first, second];
+    const ids = [firstId, secondId];
+    const bothReady = hands.every(h => h && !h.error);
+    const winner = bothReady ? strongerHand(first, second) : -1;
+
+    const side = (i) => {
+      const id = ids[i];
+      const current = hands[i];
+      const entry = entries.find(e => e.steamId64 === id);
+      const name = (entry && entry.displayName) || id;
+      const body = current && current.error
+        ? `<p class="dim">${esc(current.error.message)}</p>`
+        : !current
+          ? '<p class="dim">No hand yet this season.</p>'
+          : handHtml(current, name) + collectionButton(id, name);
+      return `<section class="compare-side${winner === i ? ' winner' : ''}">
+          <div class="compare-player">
+            ${avatar(entry && entry.avatarUrl)}
+            <a href="#/player/${esc(id)}">${esc(name)}</a>
+            ${entry ? `<span class="dim">#${entry.rank}</span>` : ''}
+            ${winner === i ? '<span class="compare-badge">Stronger hand</span>' : ''}
+          </div>
+          ${body}
+        </section>`;
+    };
+
+    let verdict = '';
+    if (bothReady) {
+      const names = ids.map(id => {
+        const entry = entries.find(e => e.steamId64 === id);
+        return esc((entry && entry.displayName) || id);
+      });
+      const pointsGap = Math.abs(first.score - second.score);
+      const damageGap = Math.abs(first.totalDamage - second.totalDamage);
+      verdict = winner === -1
+        ? 'Exactly even: same points and the same damage.'
+        : pointsGap > 0
+          ? `${names[winner]} is ahead by ${pointsGap} points.`
+          : `Same points. ${names[winner]} is ahead on damage, by ${damageGap}.`;
+    }
+
+    drawWindow('Compare hands', `
+      ${verdict ? `<p class="compare-verdict">${verdict}</p>` : ''}
+      <div class="compare">${side(0)}${side(1)}</div>
+      <div class="buttons"><a class="button" href="#/leaderboard">Back to the leaderboard</a></div>`);
+  } catch (e) {
+    drawError('Compare hands', e);
   }
 }
 
@@ -710,9 +882,13 @@ function showRoute() {
     route = '/register';
   }
 
-  drawMenu(route);
+  const pair = route.match(/^\/compare\/(\d{17})\/(\d{17})$/);
+  drawMenu(pair ? '/leaderboard' : route); // comparing is part of the leaderboard
+  if (pair) return compare(pair[1], pair[2]);
   const player = route.match(/^\/player\/(\d{17})$/);
   if (player) return profile(player[1]);
+  const theirCards = route.match(/^\/player\/(\d{17})\/collection$/);
+  if (theirCards) return collection(theirCards[1]);
   (ROUTES[route] || howItWorks)();
 }
 

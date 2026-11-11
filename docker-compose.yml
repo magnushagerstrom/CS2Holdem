@@ -1,6 +1,11 @@
-# Lokal utvecklingsmiljö för CS2Holdem.
-# Docker Compose läser automatiskt värdena från .env i samma mapp.
-# Spring Boot (spring-boot-docker-compose) startar den här filen åt dig när du trycker Play.
+# CS2Holdem i Docker. Docker Compose läser automatiskt värdena från .env i samma mapp.
+#
+# Två sätt att köra:
+#   Utveckling i IntelliJ: tryck Play. Spring Boot (spring-boot-docker-compose) startar då BARA
+#     postgres, eftersom app och worker ligger i profilen "app".
+#   Fristående, utan IntelliJ:   docker compose --profile app up -d --build
+#     Startar databasen, servern och workern. Stoppa IntelliJ först: båda vill ha port 8080,
+#     och två servrar skulle logga in samma Steam-bot samtidigt.
 services:
   postgres:
     image: postgres:16-alpine
@@ -15,6 +20,70 @@ services:
       - "${DB_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    # Docker frågar databasen var femte sekund om den tar emot anslutningar.
+    # Servern nedan väntar tills svaret är ja, istället för att krascha vid start.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    profiles: [app]
+    build: .
+    container_name: cs2holdem_app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Alla värden i .env blir miljövariabler i containern (STEAM_API_KEY, WORKER_TOKEN ...).
+    # Själva filen kopieras aldrig in i bilden, se .dockerignore.
+    env_file: .env
+    environment:
+      # Inuti Docker heter databasen "postgres" (tjänstens namn) och lyssnar på 5432
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      # Inloggning utan Steam är bara för utveckling
+      DEV_LOGIN: "false"
+      # Städjobbet kl 04:17 ska vara svensk tid, inte UTC
+      TZ: Europe/Stockholm
+      # Adressen besökarna använder. Steam skickar tillbaka dem hit efter inloggningen.
+      PUBLIC_BASE_URL: https://cs2holdem.com
+    ports:
+      - "8080:8080"
+    volumes:
+      # Bot-token och uppladdade demos ligger kvar på din disk när containern byggs om
+      - ./data:/app/data
+    restart: unless-stopped
+
+  worker:
+    profiles: [app]
+    build: ./worker
+    container_name: cs2holdem_worker
+    depends_on:
+      - app
+    environment:
+      WORKER_TOKEN: ${WORKER_TOKEN}
+      # Servern nås via sitt tjänstnamn inne i Dockers eget nätverk
+      CS2HOLDEM_URL: http://app:8080
+      WORKERS: 3
+    restart: unless-stopped
+
+  # Cloudflare Tunnel: kopplar cs2holdem.com till den här datorn utan att öppna någon port i routern.
+  # cloudflared ringer UT till Cloudflare och håller linjen öppen; besökare kommer in den vägen.
+  # Vart trafiken ska (http://app:8080) ställs in i Cloudflares dashboard, inte här.
+  tunnel:
+    profiles: [app]
+    image: cloudflare/cloudflared:latest
+    container_name: cs2holdem_tunnel
+    command: tunnel --no-autoupdate run
+    environment:
+      # Från Cloudflares dashboard. Ligger i .env, som aldrig hamnar på GitHub.
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - app
+    restart: unless-stopped
 
 volumes:
   pgdata:
